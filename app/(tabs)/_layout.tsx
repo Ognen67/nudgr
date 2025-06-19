@@ -1,35 +1,59 @@
 import { Tabs } from 'expo-router';
-import React from 'react';
-import { 
-  Platform, 
-  View, 
-  Animated
-} from 'react-native';
+import React, { memo, useRef, useEffect } from 'react';
+import { Platform, View, Animated } from 'react-native';
 import { HapticTab } from '@/components/HapticTab';
-import { useColorScheme } from '@/hooks/useColorScheme';
 import { Ionicons } from '@expo/vector-icons';
 import { GlassTabBar } from '@/components/ui/GlassTabBar';
 
-// Animated Tab Icon Component
-const AnimatedTabIcon = ({ name, focused, color }: { name: string, focused: boolean, color: string }) => {
-  const scaleValue = new Animated.Value(focused ? 1.2 : 1);
-  const opacityValue = new Animated.Value(focused ? 1 : 0.7);
+// Types
+type IoniconsName = keyof typeof Ionicons.glyphMap;
 
-  React.useEffect(() => {
+interface AnimatedTabIconProps {
+  name: IoniconsName;
+  focused: boolean;
+  color: string;
+}
+
+// Constants
+const ANIMATION_CONFIG = {
+  spring: {
+    tension: 150,
+    friction: 8,
+    useNativeDriver: true,
+  },
+  timing: {
+    duration: 200,
+    useNativeDriver: true,
+  },
+} as const;
+
+const SCALE_VALUES = {
+  focused: 1.2,
+  unfocused: 1,
+} as const;
+
+const OPACITY_VALUES = {
+  focused: 1,
+  unfocused: 0.7,
+} as const;
+
+// Memoized Animated Tab Icon Component
+const AnimatedTabIcon = memo<AnimatedTabIconProps>(({ name, focused, color }) => {
+  const scaleValue = useRef(new Animated.Value(focused ? SCALE_VALUES.focused : SCALE_VALUES.unfocused)).current;
+  const opacityValue = useRef(new Animated.Value(focused ? OPACITY_VALUES.focused : OPACITY_VALUES.unfocused)).current;
+
+  useEffect(() => {
     Animated.parallel([
       Animated.spring(scaleValue, {
-        toValue: focused ? 1.2 : 1,
-        useNativeDriver: true,
-        tension: 150,
-        friction: 8,
+        toValue: focused ? SCALE_VALUES.focused : SCALE_VALUES.unfocused,
+        ...ANIMATION_CONFIG.spring,
       }),
       Animated.timing(opacityValue, {
-        toValue: focused ? 1 : 0.7,
-        duration: 200,
-        useNativeDriver: true,
+        toValue: focused ? OPACITY_VALUES.focused : OPACITY_VALUES.unfocused,
+        ...ANIMATION_CONFIG.timing,
       }),
     ]).start();
-  }, [focused]);
+  }, [focused, scaleValue, opacityValue]);
 
   return (
     <Animated.View
@@ -38,45 +62,75 @@ const AnimatedTabIcon = ({ name, focused, color }: { name: string, focused: bool
         opacity: opacityValue,
       }}
     >
-      <Ionicons name={name as any} size={24} color={color} />
+      <Ionicons name={name} size={24} color={color} />
     </Animated.View>
   );
+});
+
+// Tab bar configuration
+const TAB_BAR_CONFIG = {
+  activeTintColor: '#FF6B35',
+  inactiveTintColor: 'rgba(255, 255, 255, 0.6)',
+  height: {
+    ios: 88,
+    default: 70,
+  },
+  padding: {
+    bottom: {
+      ios: 34,
+      default: 16,
+    },
+    top: 12,
+    vertical: 4,
+  },
+} as const;
+
+const tabBarStyle = {
+  position: 'absolute' as const,
+  bottom: 0,
+  left: 0,
+  right: 0,
+  height: Platform.OS === 'ios' ? TAB_BAR_CONFIG.height.ios : TAB_BAR_CONFIG.height.default,
+  backgroundColor: 'transparent',
+  borderTopWidth: 0,
+  paddingBottom: Platform.OS === 'ios' ? TAB_BAR_CONFIG.padding.bottom.ios : TAB_BAR_CONFIG.padding.bottom.default,
+  paddingTop: TAB_BAR_CONFIG.padding.top,
+  elevation: 0,
+  shadowOpacity: 0,
+  borderTopColor: 'transparent',
 };
 
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
+const tabBarLabelStyle = {
+  fontFamily: 'Inter',
+  fontSize: 11,
+  fontWeight: '600' as const,
+  marginTop: 4,
+  letterSpacing: 0.3,
+};
 
+const tabBarItemStyle = {
+  paddingVertical: TAB_BAR_CONFIG.padding.vertical,
+};
+
+// Tab bar background component
+const renderTabBarBackground = () => (
+  <GlassTabBar>
+    <View />
+  </GlassTabBar>
+);
+
+export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: '#FF6B35',
-        tabBarInactiveTintColor: 'rgba(255, 255, 255, 0.6)',
+        tabBarActiveTintColor: TAB_BAR_CONFIG.activeTintColor,
+        tabBarInactiveTintColor: TAB_BAR_CONFIG.inactiveTintColor,
         headerShown: false,
         tabBarButton: HapticTab,
-        tabBarBackground: () => <GlassTabBar><View /></GlassTabBar>,
-        tabBarStyle: {
-          position: 'absolute',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          height: Platform.OS === 'ios' ? 88 : 70,
-          backgroundColor: 'transparent',
-          borderTopWidth: 0,
-          paddingBottom: Platform.OS === 'ios' ? 34 : 16,
-          paddingTop: 12,
-          elevation: 0,
-          shadowOpacity: 0,
-        },
-        tabBarLabelStyle: {
-          fontFamily: 'Inter',
-          fontSize: 11,
-          fontWeight: '600',
-          marginTop: 4,
-          letterSpacing: 0.3,
-        },
-        tabBarItemStyle: {
-          paddingVertical: 4,
-        },
+        tabBarBackground: renderTabBarBackground,
+        tabBarStyle,
+        tabBarLabelStyle,
+        tabBarItemStyle,
       }}>
       <Tabs.Screen
         name="index"
@@ -92,25 +146,12 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="tasks"
-        options={{
-          title: 'Tasks',
-          tabBarIcon: ({ color, focused }) => (
-            <AnimatedTabIcon 
-              name={focused ? 'checkmark-circle' : 'checkmark-circle-outline'} 
-              focused={focused} 
-              color={color} 
-            />
-          ),
-        }}
-      />
-      <Tabs.Screen
         name="goals"
         options={{
           title: 'Goals',
           tabBarIcon: ({ color, focused }) => (
             <AnimatedTabIcon 
-              name={focused ? 'flag' : 'flag-outline'} 
+              name={focused ? 'rocket' : 'rocket-outline'} 
               focused={focused} 
               color={color} 
             />
@@ -133,7 +174,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="profile"
         options={{
-          href: null, // This hides the tab from the tab bar
+          href: null, // Hidden from tab bar
         }}
       />
     </Tabs>

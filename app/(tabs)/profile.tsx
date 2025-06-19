@@ -70,7 +70,7 @@ export default function ProfileTab() {
   };
 
   return (
-    <AppLayout>
+    <AppLayout showChatbox={false}>
       <LinearGradient
         colors={['#000000', '#1a1a1a', '#2a2a2a']}
         style={styles.container}

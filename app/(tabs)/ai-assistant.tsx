@@ -1,28 +1,103 @@
-import React from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
+  TouchableOpacity,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Button, NeonNumber } from '@/components/ui/Button';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { AppLayout } from '@/components/ui/AppLayout';
+import { useRouter } from 'expo-router';
+import { useFonts } from 'expo-font';
+
+interface Message {
+  role: 'user' | 'assistant';
+  content: string;
+}
 
 export default function AIAssistant() {
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(false);
+  const scrollViewRef = useRef<ScrollView>(null);
+  const router = useRouter();
+
+  // Load VT323 font for the title
+  const [fontsLoaded] = useFonts({
+    VT323: require('@/assets/fonts/VT323-Regular.ttf'),
+  });
+
+  const sendMessage = async () => {
+    if (!input.trim()) return;
+    const userMessage: Message = { role: 'user', content: input };
+    setMessages(prev => [...prev, userMessage]);
+    setInput('');
+    setLoading(true);
+    try {
+      const res = await fetch('http://localhost:3000/api/ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: input })
+      });
+      const data = await res.json();
+      setMessages(prev => [...prev, { role: 'assistant', content: data.reply || 'No response.' }]);
+    } catch (err) {
+      setMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, there was an error.' }]);
+    }
+    setLoading(false);
+  };
+
+  const handleAICoachPress = () => {
+    router.push('/(tabs)/ai-assistant');
+  };
+
+  const handleProfilePress = () => {
+    router.push('/profile');
+  };
+
+  if (!fontsLoaded) return null;
+
   return (
-    <AppLayout>
+    <AppLayout showChatbox={false}>
       <LinearGradient
-        colors={['#000000', '#1a1a1a', '#2a2a2a']}
+        colors={['rgba(255,107,53,0.08)', '#232323', '#181818']}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
         style={styles.container}
       >
         <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-          {/* Header */}
-          <View style={styles.header}>
-            <Text style={styles.title}>AI Coach</Text>
-            <Text style={styles.subtitle}>Your personal productivity mentor</Text>
+          {/* Top Navigation */}
+          <View style={styles.topNav}>
+            <TouchableOpacity
+              style={styles.aiCoachButton}
+              onPress={handleAICoachPress}
+              activeOpacity={0.8}
+            >
+              <View style={styles.aiCoachButtonContainer}>
+                <Ionicons name="sparkles" size={20} color="#FF6B35" />
+              </View>
+            </TouchableOpacity>
+
+            <View style={styles.logoContainer}>
+              <Text style={styles.nudgrTitle}>timeline</Text>
+            </View>
+
+            <TouchableOpacity
+              style={styles.profileButton}
+              onPress={handleProfilePress}
+              activeOpacity={0.8}
+            >
+              <View style={styles.profileButtonContainer}>
+                <Ionicons name="person-circle" size={24} color="#FF6B35" />
+              </View>
+            </TouchableOpacity>
           </View>
 
           {/* AI Stats */}
@@ -47,14 +122,16 @@ export default function AIAssistant() {
             
             <GlassCard onPress={() => {}}>
               <View style={styles.suggestionHeader}>
-                <View style={styles.suggestionIcon}>
-                  <Ionicons name="bulb" size={24} color="#FF6B35" />
-                </View>
-                <View style={styles.suggestionContent}>
-                  <Text style={styles.suggestionTitle}>Productivity Boost</Text>
-                  <Text style={styles.suggestionText}>
-                    You're most productive between 9-11 AM. Consider scheduling your most important tasks during this window.
-                  </Text>
+                <View style={styles.suggestionIconContainer}>
+                  <View style={styles.suggestionIcon}>
+                    <Ionicons name="bulb" size={24} color="#FF6B35" />
+                  </View>
+                  <View style={styles.suggestionContent}>
+                    <Text style={styles.suggestionTitle}>Productivity Boost</Text>
+                    <Text style={styles.suggestionText}>
+                      You're most productive between 9-11 AM. Consider scheduling your most important tasks during this window.
+                    </Text>
+                  </View>
                 </View>
               </View>
               <View style={styles.suggestionActions}>
@@ -170,6 +247,48 @@ export default function AIAssistant() {
             </GlassCard>
           </View>
         </ScrollView>
+        
+        {/* Chatbox UI */}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          keyboardVerticalOffset={80}
+        >
+          <View style={styles.chatContainer}>
+            <ScrollView
+              style={styles.messagesContainer}
+              ref={scrollViewRef}
+              onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
+            >
+              {messages.map((msg, idx) => (
+                <View
+                  key={idx}
+                  style={msg.role === 'user' ? styles.userMsg : styles.assistantMsg}
+                >
+                  <Text style={styles.msgText}>{msg.content}</Text>
+                </View>
+              ))}
+            </ScrollView>
+            <View style={styles.inputRow}>
+              <TextInput
+                style={styles.input}
+                value={input}
+                onChangeText={setInput}
+                placeholder="Type your message..."
+                placeholderTextColor="#aaa"
+                editable={!loading}
+                onSubmitEditing={sendMessage}
+                returnKeyType="send"
+              />
+              <Button
+                title={loading ? '...' : 'Send'}
+                onPress={sendMessage}
+                disabled={loading || !input.trim()}
+                size="small"
+                style={styles.sendBtn}
+              />
+            </View>
+          </View>
+        </KeyboardAvoidingView>
       </LinearGradient>
     </AppLayout>
   );
@@ -181,7 +300,56 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
-    paddingTop: 20,
+    paddingTop: 30,
+  },
+  // Top Navigation - matching home page
+  topNav: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 24,
+    marginBottom: 32,
+  },
+  aiCoachButton: {
+    alignItems: 'flex-start',
+  },
+  aiCoachButtonContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 107, 53, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 107, 53, 0.3)',
+  },
+  logoContainer: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  nudgrTitle: {
+    fontSize: 32,
+    fontWeight: '400',
+    color: '#fff',
+    fontFamily: 'VT323',
+    letterSpacing: 2,
+    textTransform: 'lowercase',
+    textShadowColor: 'rgba(255, 107, 53, 0.18)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 8,
+  },
+  profileButton: {
+    alignItems: 'flex-end',
+  },
+  profileButtonContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 107, 53, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 107, 53, 0.3)',
   },
   header: {
     paddingHorizontal: 24,
@@ -235,14 +403,29 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     marginBottom: 16,
   },
+  suggestionIconContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
   suggestionIcon: {
     width: 48,
     height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(255, 107, 53, 0.1)',
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 107, 53, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 107, 53, 0.3)',
+    shadowColor: '#FF6B35',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
   },
   suggestionContent: {
     flex: 1,
@@ -279,11 +462,21 @@ const styles = StyleSheet.create({
   toolIcon: {
     width: 56,
     height: 56,
-    borderRadius: 28,
-    backgroundColor: 'rgba(255, 107, 53, 0.1)',
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 107, 53, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 12,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 107, 53, 0.3)',
+    shadowColor: '#FF6B35',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
   },
   toolTitle: {
     fontSize: 16,
@@ -344,5 +537,55 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
     marginVertical: 8,
+  },
+  chatContainer: {
+    backgroundColor: 'rgba(0,0,0,0.85)',
+    padding: 8,
+    borderTopWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+  },
+  messagesContainer: {
+    maxHeight: 200,
+    marginBottom: 8,
+  },
+  userMsg: {
+    alignSelf: 'flex-end',
+    backgroundColor: '#FF6B35',
+    borderRadius: 12,
+    marginVertical: 2,
+    padding: 8,
+    maxWidth: '80%',
+  },
+  assistantMsg: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#222',
+    borderRadius: 12,
+    marginVertical: 2,
+    padding: 8,
+    maxWidth: '80%',
+  },
+  msgText: {
+    color: '#fff',
+    fontSize: 15,
+    fontFamily: 'Inter',
+  },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  input: {
+    flex: 1,
+    backgroundColor: '#181818',
+    color: '#fff',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 16,
+    fontFamily: 'Inter',
+    marginRight: 8,
+  },
+  sendBtn: {
+    minWidth: 60,
   },
 }); 

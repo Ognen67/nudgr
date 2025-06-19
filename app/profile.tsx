@@ -190,7 +190,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   scrollContent: {
-    paddingBottom: Platform.OS === 'ios' ? 140 : 120, // Space for tab bar + chat
+    // paddingBottom: Platform.OS === 'ios' ? 140 : 120, // Space for tab bar + chat
   },
   profileCard: {
     borderRadius: 16,

@@ -8,6 +8,7 @@ import {
   SafeAreaView,
   Platform,
   Animated,
+  Alert,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -25,11 +26,13 @@ const GlassChat: React.FC<{
   setChatMessage: (message: string) => void;
   onSendMessage: () => void;
   onVoicePress: () => void;
+  loading?: boolean;
 }> = ({ 
   chatMessage, 
   setChatMessage, 
   onSendMessage, 
-  onVoicePress
+  onVoicePress,
+  loading = false
 }) => {
   const [isFocused, setIsFocused] = useState(false);
   const translateY = useRef(new Animated.Value(0)).current;
@@ -157,15 +160,20 @@ const GlassChat: React.FC<{
               />
               {chatMessage.trim() ? (
                 <TouchableOpacity
-                  style={styles.sendButton}
-                  onPress={onSendMessage}
-                  activeOpacity={0.7}
+                  style={[styles.sendButton, loading && styles.sendButtonDisabled]}
+                  onPress={loading ? undefined : onSendMessage}
+                  activeOpacity={loading ? 1 : 0.7}
+                  disabled={loading}
                 >
                   <LinearGradient
-                    colors={['#FF6B35', '#FF8A65']}
+                    colors={loading ? ['#666666', '#888888'] : ['#FF6B35', '#FF8A65']}
                     style={styles.sendButtonGradient}
                   >
-                    <Ionicons name="send" size={18} color="#FFFFFF" />
+                    {loading ? (
+                      <Ionicons name="ellipsis-horizontal" size={18} color="#FFFFFF" />
+                    ) : (
+                      <Ionicons name="send" size={18} color="#FFFFFF" />
+                    )}
                   </LinearGradient>
                 </TouchableOpacity>
               ) : (
@@ -194,7 +202,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, showChatbox = tr
     if (chatMessage.trim() && !loading) {
       setLoading(true);
       try {
-        const response = await fetch('http://localhost:3000/api/ai/transform-thought', {
+        const response = await fetch('http://localhost:3000/api/ai/transform-thought-to-goal', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -207,13 +215,32 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, showChatbox = tr
         const data = await response.json();
         
         if (response.ok) {
-          console.log('Tasks created successfully:', data);
+          console.log('Goal and tasks created successfully:', data);
           setChatMessage('');
+          
+          // Show success message
+          Alert.alert(
+            'Success! 🎯',
+            `Created goal "${data.createdGoal?.title}" with ${data.createdTasks?.length || 0} tasks!`,
+            [
+              {
+                text: 'View in Reflect',
+                onPress: () => router.push('/(tabs)/goals'),
+                style: 'default'
+              },
+              {
+                text: 'Stay Here',
+                style: 'cancel'
+              }
+            ]
+          );
         } else {
-          console.error('Error creating tasks:', data.error);
+          console.error('Error creating goal and tasks:', data.error);
+          Alert.alert('Error', data.error || 'Failed to process your thought. Please try again.');
         }
       } catch (error) {
         console.error('Failed to send message:', error);
+        Alert.alert('Error', 'Network error. Please check your connection and try again.');
       }
       setLoading(false);
     }
@@ -238,6 +265,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, showChatbox = tr
           setChatMessage={setChatMessage}
           onSendMessage={handleSendMessage}
           onVoicePress={handleVoicePress}
+          loading={loading}
         />
       )}
     </View>
@@ -307,6 +335,9 @@ const styles = StyleSheet.create({
   },
   sendButton: {
     marginLeft: 8,
+  },
+  sendButtonDisabled: {
+    opacity: 0.6,
   },
   sendButtonGradient: {
     width: 36,

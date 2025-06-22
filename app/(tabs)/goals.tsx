@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,9 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  Animated,
 } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { GlassCard } from '@/components/ui/GlassCard';
@@ -36,8 +38,79 @@ interface Goal {
   totalTasks: number;
 }
 
+// Separate component for task items to manage animation state properly
+const TaskItem: React.FC<{
+  task: Task;
+  isUnassigned: boolean;
+  onToggle: () => void;
+  getPriorityColor: (priority: string) => string;
+}> = ({ task, isUnassigned, onToggle, getPriorityColor }) => {
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  const handleTaskPress = () => {
+    // Haptic feedback for better UX
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    
+    // Animate scale down and up for visual feedback
+    Animated.sequence([
+      Animated.timing(scaleAnim, {
+        toValue: 0.95,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(scaleAnim, {
+        toValue: 1,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    // Toggle the task
+    onToggle();
+  };
+
+  return (
+    <Animated.View
+      style={[
+        styles.taskItem,
+        {
+          transform: [{ scale: scaleAnim }],
+        },
+      ]}
+    >
+      <TouchableOpacity 
+        style={styles.taskContent}
+        onPress={handleTaskPress}
+        activeOpacity={0.8}
+      >
+        <View style={[styles.checkbox, task.completed && styles.checkboxCompleted]}>
+          {task.completed ? (
+            <Ionicons name="checkmark-circle" size={22} color="#4CAF50" />
+          ) : (
+            <Ionicons name="ellipse-outline" size={22} color="rgba(255, 255, 255, 0.4)" />
+          )}
+        </View>
+        <View style={styles.taskDetails}>
+          <Text style={[
+            styles.taskTitle,
+            task.completed && styles.taskCompleted
+          ]}>
+            {task.title}
+          </Text>
+          <View style={styles.taskMeta}>
+            <View style={[styles.priorityDot, { backgroundColor: getPriorityColor(task.priority) }]} />
+            {(task.aiGenerated || isUnassigned) && (
+              <Text style={styles.aiTag}>AI</Text>
+            )}
+          </View>
+        </View>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+};
+
 export default function Goals() {
-  const [expandedGoal, setExpandedGoal] = useState<string | null>(null);
+  const [expandedGoals, setExpandedGoals] = useState<Set<string>>(new Set());
   const [goals, setGoals] = useState<Goal[]>([]);
   const [standaloneTasks, setStandaloneTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
@@ -77,16 +150,42 @@ export default function Goals() {
             // Map goals with their tasks
             const goalsWithTasks = goalsData.map((goal: any) => ({
               ...goal,
-              icon: 'briefcase', // Default icon
+              icon: goal.icon || 'briefcase', // Default icon
               tasks: goalTasks.filter((task: Task) => task.goalId === goal.id),
               completedTasks: goalTasks.filter((task: Task) => task.goalId === goal.id && task.completed).length,
               totalTasks: goalTasks.filter((task: Task) => task.goalId === goal.id).length
             }));
-            setGoals(goalsWithTasks);
+
+            // Create an "Unassigned Tasks" goal if there are standalone tasks
+            const allGoals = [...goalsWithTasks];
+            if (standaloneTasksList.length > 0) {
+              allGoals.push({
+                id: 'unassigned',
+                title: 'Unassigned Tasks',
+                icon: 'sparkles',
+                tasks: standaloneTasksList,
+                completedTasks: standaloneTasksList.filter((task: Task) => task.completed).length,
+                totalTasks: standaloneTasksList.length
+              });
+            }
+            
+            setGoals(allGoals);
           }
         } catch (goalError) {
           console.log('No goals endpoint or goals available');
-          setGoals([]);
+          // Create only the unassigned tasks goal
+                     if (standaloneTasksList.length > 0) {
+             setGoals([{
+               id: 'unassigned',
+               title: 'Unassigned Tasks',
+               icon: 'sparkles',
+               tasks: standaloneTasksList,
+               completedTasks: standaloneTasksList.filter((task: Task) => task.completed).length,
+               totalTasks: standaloneTasksList.length
+             }]);
+           } else {
+             setGoals([]);
+           }
         }
       }
     } catch (error) {
@@ -98,10 +197,61 @@ export default function Goals() {
   };
 
   const toggleGoal = (goalId: string) => {
-    setExpandedGoal(expandedGoal === goalId ? null : goalId);
+    const newExpandedGoals = new Set(expandedGoals);
+    if (newExpandedGoals.has(goalId)) {
+      newExpandedGoals.delete(goalId);
+    } else {
+      newExpandedGoals.add(goalId);
+    }
+    setExpandedGoals(newExpandedGoals);
   };
 
   const toggleTask = async (taskId: string, isGoalTask: boolean = false) => {
+    // Find the task in the current state
+    let targetTask: Task | null = null;
+    let targetGoal: Goal | null = null;
+    
+    // Search in goals and standalone tasks
+    for (const goal of goals) {
+      const task = goal.tasks.find(t => t.id === taskId);
+      if (task) {
+        targetTask = task;
+        targetGoal = goal;
+        break;
+      }
+    }
+    
+    if (!targetTask) {
+      console.error('Task not found');
+      return;
+    }
+
+    // Optimistic update: immediately update the UI
+    const newCompletedStatus = !targetTask.completed;
+    
+    // Update goals state optimistically
+    setGoals(prevGoals => 
+      prevGoals.map(goal => {
+        if (goal.id === targetGoal?.id) {
+          const updatedTasks = goal.tasks.map(task => 
+            task.id === taskId 
+              ? { ...task, completed: newCompletedStatus }
+              : task
+          );
+          
+          const newCompletedCount = updatedTasks.filter(task => task.completed).length;
+          
+          return {
+            ...goal,
+            tasks: updatedTasks,
+            completedTasks: newCompletedCount
+          };
+        }
+        return goal;
+      })
+    );
+
+    // Make API call in the background
     try {
       const response = await fetch(`http://localhost:3000/api/tasks/${taskId}`, {
         method: 'PATCH',
@@ -109,17 +259,61 @@ export default function Goals() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          completed: true // Toggle completion
+          completed: newCompletedStatus
         }),
       });
 
-      if (response.ok) {
-        // Refresh the data after updating
-        fetchGoalsAndTasks();
+      if (!response.ok) {
+        // If API call fails, revert the optimistic update
+        setGoals(prevGoals => 
+          prevGoals.map(goal => {
+            if (goal.id === targetGoal?.id) {
+              const revertedTasks = goal.tasks.map(task => 
+                task.id === taskId 
+                  ? { ...task, completed: !newCompletedStatus } // Revert
+                  : task
+              );
+              
+              const revertedCompletedCount = revertedTasks.filter(task => task.completed).length;
+              
+              return {
+                ...goal,
+                tasks: revertedTasks,
+                completedTasks: revertedCompletedCount
+              };
+            }
+            return goal;
+          })
+        );
+        
+        Alert.alert('Error', 'Failed to update task. Please try again.');
       }
     } catch (error) {
       console.error('Error updating task:', error);
-      Alert.alert('Error', 'Failed to update task');
+      
+      // Revert optimistic update on network error
+      setGoals(prevGoals => 
+        prevGoals.map(goal => {
+          if (goal.id === targetGoal?.id) {
+            const revertedTasks = goal.tasks.map(task => 
+              task.id === taskId 
+                ? { ...task, completed: !newCompletedStatus } // Revert
+                : task
+            );
+            
+            const revertedCompletedCount = revertedTasks.filter(task => task.completed).length;
+            
+            return {
+              ...goal,
+              tasks: revertedTasks,
+              completedTasks: revertedCompletedCount
+            };
+          }
+          return goal;
+        })
+      );
+      
+      Alert.alert('Error', 'Network error. Please check your connection and try again.');
     }
   };
 
@@ -143,6 +337,16 @@ export default function Goals() {
   const handleProfilePress = () => {
     router.push('/profile');
   };
+
+  const renderTask = (task: Task, isUnassigned: boolean = false) => (
+    <TaskItem
+      key={task.id}
+      task={task}
+      isUnassigned={isUnassigned}
+      onToggle={() => toggleTask(task.id)}
+      getPriorityColor={getPriorityColor}
+    />
+  );
 
   if (!fontsLoaded) return null;
 
@@ -186,138 +390,94 @@ export default function Goals() {
           {loading ? (
             <View style={styles.contentLoadingContainer}>
               <ActivityIndicator size="large" color="#FF6B35" />
-              <Text style={styles.loadingText}>Loading tasks...</Text>
+              <Text style={styles.loadingText}>Loading...</Text>
             </View>
           ) : (
             <>
-              {/* AI-Generated Standalone Tasks */}
-              {standaloneTasks.length > 0 && (
-                <View style={styles.sectionContainer}>
-                  <Text style={styles.sectionTitle}>✨ AI-Generated Tasks</Text>
-                  {standaloneTasks.map((task) => (
-                    <GlassCard key={task.id} style={styles.taskCard}>
-                      <TouchableOpacity 
-                        style={styles.taskContent}
-                        onPress={() => toggleTask(task.id)}
-                      >
-                        <View style={styles.checkbox}>
-                          {task.completed ? (
-                            <Ionicons name="checkmark-circle" size={24} color="#4CAF50" />
-                          ) : (
-                            <Ionicons name="ellipse-outline" size={24} color="rgba(255, 255, 255, 0.4)" />
-                          )}
-                        </View>
-                        <View style={styles.taskDetails}>
-                          <Text style={[
-                            styles.taskTitle,
-                            task.completed && styles.taskCompleted
-                          ]}>
-                            {task.title}
-                          </Text>
-                          {task.description && (
-                            <Text style={styles.taskDescription}>
-                              {task.description}
-                            </Text>
-                          )}
-                          <View style={styles.taskMeta}>
-                            <View style={[styles.priorityTag, { backgroundColor: getPriorityColor(task.priority) }]}>
-                              <Text style={styles.priorityText}>{task.priority}</Text>
-                            </View>
-                            {task.estimatedTime && (
-                              <Text style={styles.timeEstimate}>
-                                {task.estimatedTime}min
-                              </Text>
-                            )}
-                            <Text style={styles.aiTag}>AI</Text>
-                          </View>
-                        </View>
-                      </TouchableOpacity>
-                    </GlassCard>
-                  ))}
-                </View>
-              )}
-
-              {/* Goals List */}
+              {/* Goals with Tasks Accordion */}
               {goals.length > 0 && (
                 <View style={styles.sectionContainer}>
-                  <Text style={styles.sectionTitle}>🎯 Goals</Text>
+                  
                   {goals.map((goal) => (
                     <View key={goal.id} style={styles.goalContainer}>
-                      <GlassCard onPress={() => toggleGoal(goal.id)}>
-                        <View style={styles.goalHeader}>
-                          <View style={styles.goalInfo}>
-                            <View style={styles.goalIcon}>
-                              <Ionicons name={goal.icon as any} size={24} color="#FF6B35" />
-                            </View>
-                            <View style={styles.goalDetails}>
-                              <Text style={styles.goalTitle}>{goal.title}</Text>
-                              <Text style={styles.goalProgress}>
-                                {goal.completedTasks}/{goal.totalTasks} tasks • {getProgressPercentage(goal)}%
-                              </Text>
-                            </View>
-                          </View>
-                          <View style={styles.expandIcon}>
-                            <Ionicons 
-                              name={expandedGoal === goal.id ? 'chevron-up' : 'chevron-down'} 
-                              size={20} 
-                              color="rgba(255, 255, 255, 0.6)" 
-                            />
-                          </View>
-                        </View>
-                        
-                        {/* Progress Bar */}
-                        <View style={styles.progressContainer}>
-                          <View style={styles.progressBar}>
-                            <View 
-                              style={[
-                                styles.progressFill, 
-                                { width: `${getProgressPercentage(goal)}%` }
-                              ]} 
-                            />
-                          </View>
-                        </View>
-                      </GlassCard>
-
-                      {/* Tasks List - Expanded */}
-                      {expandedGoal === goal.id && (
-                        <View style={styles.tasksContainer}>
-                          {goal.tasks.map((task) => (
-                            <TouchableOpacity 
-                              key={task.id} 
-                              style={styles.taskItem}
-                              onPress={() => toggleTask(task.id)}
-                            >
-                              <View style={styles.taskContent}>
-                                <View style={styles.checkbox}>
-                                  {task.completed ? (
-                                    <Ionicons name="checkmark-circle" size={24} color="#4CAF50" />
-                                  ) : (
-                                    <Ionicons name="ellipse-outline" size={24} color="rgba(255, 255, 255, 0.4)" />
-                                  )}
-                                </View>
-                                <Text style={[
-                                  styles.taskTitle,
-                                  task.completed && styles.taskCompleted
-                                ]}>
-                                  {task.title}
+                                             <GlassCard 
+                         style={expandedGoals.has(goal.id) ? {...styles.goalCard, ...styles.goalCardExpanded} : styles.goalCard}
+                       >
+                        <TouchableOpacity 
+                          onPress={() => toggleGoal(goal.id)}
+                          activeOpacity={0.8}
+                        >
+                          <View style={styles.goalHeader}>
+                            <View style={styles.goalInfo}>
+                              <View style={[
+                                styles.goalIcon,
+                                goal.id === 'unassigned' && styles.unassignedGoalIcon
+                              ]}>
+                                <Ionicons 
+                                  name={goal.icon as any} 
+                                  size={24} 
+                                  color={goal.id === 'unassigned' ? '#FF6B35' : '#FF6B35'} 
+                                />
+                              </View>
+                              <View style={styles.goalDetails}>
+                                <Text style={styles.goalTitle}>{goal.title}</Text>
+                                <Text style={styles.goalProgress}>
+                                  {goal.completedTasks}/{goal.totalTasks} tasks
                                 </Text>
                               </View>
-                            </TouchableOpacity>
-                          ))}
-                        </View>
-                      )}
+                            </View>
+                            <View style={styles.expandIcon}>
+                              <Ionicons 
+                                name={expandedGoals.has(goal.id) ? 'chevron-up' : 'chevron-down'} 
+                                size={24} 
+                                color="rgba(255, 255, 255, 0.6)" 
+                              />
+                            </View>
+                          </View>
+                          
+                          {/* Progress Bar */}
+                          <View style={styles.progressContainer}>
+                            <View style={styles.progressBar}>
+                              <View 
+                                style={[
+                                  styles.progressFill, 
+                                  { width: `${getProgressPercentage(goal)}%` }
+                                ]} 
+                              />
+                            </View>
+                          </View>
+                        </TouchableOpacity>
+
+                        {/* Tasks List - Expanded */}
+                        {expandedGoals.has(goal.id) && (
+                          <View style={styles.tasksContainer}>
+
+                            {goal.tasks.map((task) => renderTask(task, goal.id === 'unassigned'))}
+                            
+                            {goal.tasks.length === 0 && (
+                              <View style={styles.emptyTasksContainer}>
+                                <Text style={styles.emptyTasksText}>
+                                  No tasks
+                                </Text>
+                              </View>
+                            )}
+                          </View>
+                        )}
+                      </GlassCard>
                     </View>
                   ))}
                 </View>
               )}
 
               {/* Empty State */}
-              {goals.length === 0 && standaloneTasks.length === 0 && (
+              {goals.length === 0 && (
                 <View style={styles.emptyState}>
-                  <Ionicons name="clipboard-outline" size={48} color="rgb(255, 107, 53)" />
-                  <Text style={styles.emptyTitle}>no tasks yet</Text>
+                  <View style={styles.emptyIconContainer}>
+                    <Ionicons name="flag-outline" size={48} color="rgb(255, 107, 53)" />
+                  </View>
+                  <Text style={styles.emptyTitle}>no goals yet</Text>
                   <Text style={styles.emptySubtitle}>
-                    drop a thought to get started!
+                    drop a thought to get started
                   </Text>
                 </View>
               )}
@@ -387,7 +547,12 @@ const styles = StyleSheet.create({
   },
   goalContainer: {
     marginBottom: 16,
-    paddingHorizontal: 24,
+  },
+  goalCard: {
+    marginBottom: 12,
+  },
+  goalCardExpanded: {
+    marginBottom: 24,
   },
   goalHeader: {
     flexDirection: 'row',
@@ -418,6 +583,11 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 5,
   },
+  unassignedGoalIcon: {
+    backgroundColor: 'rgba(255, 107, 53, 0.2)',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 107, 53, 0.3)',
+  },
   goalDetails: {
     flex: 1,
   },
@@ -431,6 +601,12 @@ const styles = StyleSheet.create({
   goalProgress: {
     fontSize: 14,
     color: 'rgba(255, 255, 255, 0.6)',
+    fontFamily: 'Inter',
+  },
+  goalDescription: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.7)',
+    marginTop: 4,
     fontFamily: 'Inter',
   },
   expandIcon: {
@@ -456,6 +632,21 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: 'hidden',
   },
+  tasksHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  tasksHeaderText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    fontFamily: 'Inter',
+  },
   taskItem: {
     paddingVertical: 16,
     paddingHorizontal: 20,
@@ -469,6 +660,13 @@ const styles = StyleSheet.create({
   checkbox: {
     marginRight: 12,
   },
+  checkboxCompleted: {
+    opacity: 0.8,
+  },
+  taskDetails: {
+    flex: 1,
+    marginLeft: 12,
+  },
   taskTitle: {
     fontSize: 16,
     color: '#FFFFFF',
@@ -478,6 +676,48 @@ const styles = StyleSheet.create({
   taskCompleted: {
     color: 'rgba(255, 255, 255, 0.5)',
     textDecorationLine: 'line-through',
+    opacity: 0.7,
+  },
+  taskDescription: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.7)',
+    marginTop: 4,
+    fontFamily: 'Inter',
+  },
+  taskMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    gap: 8,
+  },
+  priorityTag: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+  },
+  priorityDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  priorityText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  timeEstimate: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.6)',
+    fontFamily: 'Inter',
+  },
+  aiTag: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#FF6B35',
+    backgroundColor: 'rgba(255, 107, 53, 0.2)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
   },
   loadingContainer: {
     flex: 1,
@@ -509,48 +749,11 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     fontFamily: 'Inter',
   },
-  taskCard: {
-    marginBottom: 12,
-  },
-  taskDetails: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  taskDescription: {
+  sectionSubtitle: {
     fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.7)',
-    marginTop: 4,
-    fontFamily: 'Inter',
-  },
-  taskMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 8,
-    gap: 8,
-  },
-  priorityTag: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 12,
-  },
-  priorityText: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  timeEstimate: {
-    fontSize: 12,
     color: 'rgba(255, 255, 255, 0.6)',
     fontFamily: 'Inter',
-  },
-  aiTag: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#FF6B35',
-    backgroundColor: 'rgba(255, 107, 53, 0.2)',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 8,
+    marginBottom: 16,
   },
   emptyState: {
     flex: 1,
@@ -559,11 +762,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 100,
   },
+  emptyIconContainer: {
+    marginBottom: 24,
+  },
   emptyTitle: {
     fontSize: 22,
     fontWeight: '800',
     color: '#fff',
-    marginTop: 24,
+    marginBottom: 16,
     fontFamily: 'Inter',
     letterSpacing: -0.3,
   },
@@ -577,6 +783,17 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 8,
     textAlign: 'center',
-    marginTop: 16,
+  },
+  emptyTasksContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 32,
+  },
+  emptyTasksText: {
+    color: 'rgba(255, 255, 255, 0.6)',
+    fontSize: 14,
+    fontFamily: 'Inter',
+    fontStyle: 'italic',
   },
 }); 

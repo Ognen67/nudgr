@@ -5,6 +5,7 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Dimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
@@ -15,7 +16,7 @@ import { AppLayout } from '@/components/ui/AppLayout';
 import { useRouter } from 'expo-router';
 import { useFonts } from 'expo-font';
 
-
+const { width, height } = Dimensions.get('window');
 
 export default function Dashboard() {
   const router = useRouter();
@@ -82,9 +83,9 @@ export default function Dashboard() {
 
           {/* Drop a Thought Prompt */}
           <View style={styles.thoughtPromptContainer}>
-            <Text style={styles.thoughtPromptTitle}>drop a thought...</Text>
+            <Text style={styles.thoughtPromptTitle}>drop a thought</Text>
             <Text style={styles.thoughtPromptSubtitle}>
-              capture anything on your mind. your ai coach is always listening.
+              capture anything on your mind.
             </Text>
           </View>
         </ScrollView>
@@ -141,159 +142,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     width: "100%"
   },
-  taskItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-  },
-  aiMessageIcon: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: 'rgba(255, 107, 53, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-    marginTop: 2,
-  },
-  taskInfo: {
-    flex: 1,
-  },
-  taskTitle: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#FFFFFF',
-    fontFamily: 'Inter',
-    letterSpacing: -0.2,
-    lineHeight: 24,
-  },
-  taskTime: {
-    fontSize: 14,
-    color: '#FF6B35',
-    marginTop: 6,
-    fontFamily: 'Inter',
-    fontWeight: '400',
-    opacity: 0.9,
-  },
-  statsContainer: {
-    flexDirection: 'row',
-    paddingHorizontal: 24,
-    marginBottom: 32,
-    justifyContent: 'space-between',
-  },
-  statCard: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  statLabel: {
-    fontSize: 15,
-    color: 'rgba(255, 255, 255, 0.7)',
-    marginTop: 12,
-    fontFamily: 'Inter',
-    fontWeight: '500',
-  },
-  section: {
-    marginBottom: 24,
-    paddingHorizontal: 24,
-  },
-  sectionTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    marginBottom: 16,
-    fontFamily: 'Inter',
-    letterSpacing: -0.3,
-  },
-  frostedCard: {
-    borderRadius: 16,
-    marginBottom: 16,
-    overflow: 'hidden',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  frostedBlur: {
-    borderRadius: 16,
-  },
-  frostedOverlay: {
-    padding: 24,
-    borderWidth: 1,
-    borderRadius: 16,
-    backgroundColor: 'rgba(0, 0, 0, 0.2)',
-  },
-  actionsGrid: {
-    flexDirection: 'row',
-    gap: 20,
-  },
-  actionButton: {
-    flex: 1,
-  },
-  activityItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 16,
-  },
-  activityIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  activityText: {
-    flex: 1,
-    fontSize: 16,
-    color: '#FFFFFF',
-    fontFamily: 'Inter',
-    fontWeight: '500',
-  },
-  activityTime: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.6)',
-    fontFamily: 'Inter',
-    fontWeight: '300',
-  },
-  activityDivider: {
-    height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    marginVertical: 12,
-  },
-  upcomingItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 16,
-  },
-  upcomingIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255, 107, 53, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  upcomingInfo: {
-    flex: 1,
-  },
-  upcomingTitle: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#FFFFFF',
-    fontFamily: 'Inter',
-    letterSpacing: -0.2,
-    lineHeight: 24,
-  },
-  upcomingTime: {
-    fontSize: 14,
-    color: '#FF6B35',
-    marginTop: 6,
-    fontFamily: 'Inter',
-    fontWeight: '400',
-    opacity: 0.9,
-  },
   profileButton: {
     alignItems: 'flex-end',
   },
@@ -307,93 +155,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255, 107, 53, 0.3)',
   },
-  // Priority Icon Styles
-  priorityIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  // AI Message Styles
-  aiMessageHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  aiMessageInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  aiMessageContent: {
-    flex: 1,
-  },
-  aiMessageTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    fontFamily: 'Inter',
-    marginBottom: 2,
-  },
-  aiMessageTime: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.6)',
-    fontFamily: 'Inter',
-  },
-  // Activity Content
-  activityContent: {
-    flex: 1,
-  },
-  // Urgent Message Card Styles
-  highUrgencyCard: {
-    backgroundColor: 'rgba(255, 68, 68, 0.04)',
-    shadowColor: '#FF4444',
-    shadowOffset: {
-      width: 0,
-      height: 0,
-    },
-    shadowOpacity: 0.4,
-    shadowRadius: 4,
-    elevation: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 68, 68, 0.3)',
-    marginBottom: 16,
-  },
-  mediumUrgencyCard: {
-    backgroundColor: 'rgba(255, 165, 0, 0.04)',
-    shadowColor: '#FFA500',
-    shadowOffset: {
-      width: 0,
-      height: 0,
-    },
-    shadowOpacity: 0.4,
-    shadowRadius: 4,
-    elevation: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 165, 0, 0.3)',
-    marginBottom: 16,
-  },
-  aiBubble: {
+  aiChatBubble: {
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
     borderRadius: 16,
     padding: 16,
-  },
-  aiBubbleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  aiAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 107, 53, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  aiBubbleContent: {
-    flex: 1,
+    maxWidth: '88%',
+    alignSelf: 'flex-start',
   },
   aiBubbleText: {
     fontSize: 15,
@@ -425,25 +192,5 @@ const styles = StyleSheet.create({
     textShadowColor: 'rgba(255,255,255,0.18)',
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 8,
-  },
-  aiChatRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  aiChatAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 107, 53, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  aiChatBubble: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 16,
-    padding: 16,
-    maxWidth: '100%',
-    alignSelf: 'flex-start',
   },
 });

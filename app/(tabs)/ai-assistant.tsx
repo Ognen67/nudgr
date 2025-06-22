@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,24 +8,165 @@ import {
   KeyboardAvoidingView,
   Platform,
   TouchableOpacity,
+  ActivityIndicator,
+  Animated,
+  Dimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { Button, NeonNumber } from '@/components/ui/Button';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { AppLayout } from '@/components/ui/AppLayout';
 import { useRouter } from 'expo-router';
 import { useFonts } from 'expo-font';
+import * as Haptics from 'expo-haptics';
 
-interface Message {
-  role: 'user' | 'assistant';
-  content: string;
+const { width: screenWidth } = Dimensions.get('window');
+
+interface Task {
+  id: string;
+  title: string;
+  description?: string;
+  completed: boolean;
+  priority: 'HIGH' | 'MEDIUM' | 'LOW';
+  estimatedTime?: number;
+  aiGenerated: boolean;
+  goalId?: string | null;
+  createdAt?: string;
 }
 
-export default function AIAssistant() {
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState('');
-  const [loading, setLoading] = useState(false);
+interface Goal {
+  id: string;
+  title: string;
+  description?: string;
+  priority: 'HIGH' | 'MEDIUM' | 'LOW';
+  category?: string;
+  tasks: Task[];
+  completedTasks: number;
+  totalTasks: number;
+  createdAt: string;
+  deadline?: string;
+}
+
+interface TimelineItem {
+  id: string;
+  type: 'goal' | 'milestone';
+  title: string;
+  subtitle?: string;
+  description?: string;
+  date: string;
+  progress?: number;
+  priority: 'HIGH' | 'MEDIUM' | 'LOW';
+  category?: string;
+  icon: string;
+  color: string;
+  goal?: Goal;
+  completed?: boolean;
+}
+
+
+
+// Timeline node component
+const TimelineNode: React.FC<{
+  item: TimelineItem;
+  index: number;
+  isLeft: boolean;
+  onPress: () => void;
+  timelineItems: TimelineItem[];
+}> = ({ item, index, isLeft, onPress, timelineItems }) => {
+  const scaleAnim = useRef(new Animated.Value(0)).current;
+  const opacityAnim = useRef(new Animated.Value(0)).current;
+  const translateXAnim = useRef(new Animated.Value(isLeft ? -50 : 50)).current;
+
+  useEffect(() => {
+    const delay = index * 200;
+    setTimeout(() => {
+      Animated.parallel([
+        Animated.spring(scaleAnim, {
+          toValue: 1,
+          tension: 50,
+          friction: 7,
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacityAnim, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+        Animated.spring(translateXAnim, {
+          toValue: 0,
+          tension: 50,
+          friction: 7,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }, delay);
+  }, [index]);
+
+  const handlePress = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    Animated.sequence([
+      Animated.timing(scaleAnim, {
+        toValue: 0.95,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(scaleAnim, {
+        toValue: 1,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+    ]).start();
+    onPress();
+  };
+
+  const formatDate = (dateString: string): string => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { 
+      day: 'numeric',
+      month: 'short'
+    });
+  };
+
+  return (
+    <Animated.View
+      style={[
+        styles.timelineNodeContainer,
+        isLeft ? styles.timelineNodeLeft : styles.timelineNodeRight,
+        {
+          transform: [{ scale: scaleAnim }, { translateX: translateXAnim }],
+          opacity: opacityAnim,
+        },
+      ]}
+    >
+      <TouchableOpacity onPress={handlePress} activeOpacity={0.8}>
+        <View style={styles.timelineItemWrapper}>
+          {/* Task card */}
+          <GlassCard style={styles.goalCard}>
+            <View style={styles.goalCardContent}>
+              <View style={styles.taskRow}>
+                <Ionicons name="checkmark-circle" size={20} color="#4CAF50" />
+                <Text style={styles.goalTitle}>{item.title}</Text>
+              </View>
+              
+              {/* Date */}
+              <Text style={styles.dateText}>
+                {formatDate(item.date)}
+              </Text>
+            </View>
+          </GlassCard>
+        </View>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+};
+
+export default function Timeline() {
+  const [goals, setGoals] = useState<Goal[]>([]);
+  const [timelineItems, setTimelineItems] = useState<TimelineItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
   const router = useRouter();
 
@@ -34,24 +175,96 @@ export default function AIAssistant() {
     VT323: require('@/assets/fonts/VT323-Regular.ttf'),
   });
 
-  const sendMessage = async () => {
-    if (!input.trim()) return;
-    const userMessage: Message = { role: 'user', content: input };
-    setMessages(prev => [...prev, userMessage]);
-    setInput('');
-    setLoading(true);
+  // Fetch goals and transform into timeline items
+  useEffect(() => {
+    fetchGoalsAndTasks();
+  }, []);
+
+  const fetchGoalsAndTasks = async () => {
     try {
-      const res = await fetch('http://localhost:3000/api/ai', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: input })
-      });
-      const data = await res.json();
-      setMessages(prev => [...prev, { role: 'assistant', content: data.reply || 'No response.' }]);
-    } catch (err) {
-      setMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, there was an error.' }]);
+      setLoading(true);
+      
+      // Fetch goals
+      const goalsResponse = await fetch('http://localhost:3000/api/goals');
+      const goalsData = await goalsResponse.json();
+      
+      if (goalsResponse.ok) {
+        setGoals(goalsData);
+        
+        // Transform goals into timeline items
+        const timeline = createTimelineFromGoals(goalsData);
+        setTimelineItems(timeline);
+      }
+    } catch (error) {
+      console.error('Error fetching goals:', error);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
+  };
+
+  const createTimelineFromGoals = (goalsData: any[]): TimelineItem[] => {
+    const items: TimelineItem[] = [];
+    
+    // Collect all completed tasks from all goals
+    goalsData.forEach((goal) => {
+      if (goal.tasks) {
+        goal.tasks.forEach((task: Task) => {
+          if (task.completed) {
+            items.push({
+              id: task.id,
+              type: 'goal', // Keep as 'goal' to maintain existing component structure
+              title: task.title,
+              date: task.createdAt || new Date().toISOString(),
+              priority: task.priority,
+              icon: 'checkmark-circle',
+              color: '#4CAF50',
+              completed: true,
+            });
+          }
+        });
+      }
+    });
+    
+    // Sort by date (newest first)
+    return items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  };
+
+  const getCategoryIcon = (category?: string): string => {
+    switch (category?.toLowerCase()) {
+      case 'work': return 'briefcase';
+      case 'personal': return 'person';
+      case 'health': return 'fitness';
+      case 'learning': return 'school';
+      case 'finance': return 'card';
+      case 'creative': return 'color-palette';
+      default: return 'target';
+    }
+  };
+
+  const getPriorityColor = (priority: string): string => {
+    switch (priority) {
+      case 'HIGH': return '#FF4444';
+      case 'MEDIUM': return '#FF6B35';
+      case 'LOW': return '#4CAF50';
+      default: return '#FF6B35';
+    }
+  };
+
+  const formatDate = (dateString: string): string => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffTime = Math.abs(now.getTime() - date.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) return 'Today';
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays < 7) return `${diffDays} days ago`;
+    return date.toLocaleDateString();
+  };
+
+  const handleTaskPress = (item: TimelineItem) => {
+    // Could add task detail view here in the future
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
   const handleAICoachPress = () => {
@@ -72,7 +285,13 @@ export default function AIAssistant() {
         end={{ x: 0.5, y: 1 }}
         style={styles.container}
       >
-        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+
+
+        <ScrollView 
+          ref={scrollViewRef}
+          style={styles.scrollView} 
+          showsVerticalScrollIndicator={false}
+        >
           {/* Top Navigation */}
           <View style={styles.topNav}>
             <TouchableOpacity
@@ -100,195 +319,45 @@ export default function AIAssistant() {
             </TouchableOpacity>
           </View>
 
-          {/* AI Stats */}
-          <View style={styles.statsContainer}>
-            <View style={styles.statCard}>
-              <NeonNumber value="24" size="large" color="#FF6B35" />
-              <Text style={styles.statLabel}>Sessions</Text>
+          {/* Loading State */}
+          {loading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color="#FF6B35" />
+              <Text style={styles.loadingText}>Loading...</Text>
             </View>
-            <View style={styles.statCard}>
-              <NeonNumber value="89%" size="large" color="#4CAF50" />
-              <Text style={styles.statLabel}>Success</Text>
-            </View>
-            <View style={styles.statCard}>
-              <NeonNumber value="156" size="large" color="#FFFFFF" />
-              <Text style={styles.statLabel}>Tips</Text>
-            </View>
-          </View>
-
-          {/* AI Suggestions */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Today's Insights</Text>
-            
-            <GlassCard onPress={() => {}}>
-              <View style={styles.suggestionHeader}>
-                <View style={styles.suggestionIconContainer}>
-                  <View style={styles.suggestionIcon}>
-                    <Ionicons name="bulb" size={24} color="#FF6B35" />
-                  </View>
-                  <View style={styles.suggestionContent}>
-                    <Text style={styles.suggestionTitle}>Productivity Boost</Text>
-                    <Text style={styles.suggestionText}>
-                      You're most productive between 9-11 AM. Consider scheduling your most important tasks during this window.
+          ) : (
+            <>
+              {/* Timeline */}
+              <View style={styles.timelineContainer}>
+                {/* Central timeline line */}
+                <View style={styles.timelineLine} />
+                
+                {timelineItems.length > 0 ? (
+                  timelineItems.map((item, index) => (
+                    <TimelineNode
+                      key={item.id}
+                      item={item}
+                      index={index}
+                      isLeft={false}
+                      onPress={() => handleTaskPress(item)}
+                      timelineItems={timelineItems}
+                    />
+                  ))
+                ) : (
+                  <View style={styles.emptyTimeline}>
+                    <View style={styles.emptyIconContainer}>
+                      <Ionicons name="checkmark-circle-outline" size={48} color="rgba(255, 107, 53, 0.6)" />
+                    </View>
+                    <Text style={styles.emptyTitle}>No completed tasks</Text>
+                    <Text style={styles.emptySubtitle}>
+                      Complete some tasks to see them here
                     </Text>
                   </View>
-                </View>
+                )}
               </View>
-              <View style={styles.suggestionActions}>
-                <Button title="Apply" size="small" onPress={() => {}} />
-                <Button title="Learn More" variant="secondary" size="small" onPress={() => {}} />
-              </View>
-            </GlassCard>
-
-            <GlassCard onPress={() => {}}>
-              <View style={styles.suggestionHeader}>
-                <View style={styles.suggestionIcon}>
-                  <Ionicons name="trending-up" size={24} color="#4CAF50" />
-                </View>
-                <View style={styles.suggestionContent}>
-                  <Text style={styles.suggestionTitle}>Goal Optimization</Text>
-                  <Text style={styles.suggestionText}>
-                    Break down your "Launch New Product" goal into smaller weekly milestones for better tracking.
-                  </Text>
-                </View>
-              </View>
-              <View style={styles.suggestionActions}>
-                <Button title="Auto-Break" size="small" onPress={() => {}} />
-                <Button title="Skip" variant="secondary" size="small" onPress={() => {}} />
-              </View>
-            </GlassCard>
-
-            <GlassCard onPress={() => {}}>
-              <View style={styles.suggestionHeader}>
-                <View style={styles.suggestionIcon}>
-                  <Ionicons name="time" size={24} color="#FFFFFF" />
-                </View>
-                <View style={styles.suggestionContent}>
-                  <Text style={styles.suggestionTitle}>Time Management</Text>
-                  <Text style={styles.suggestionText}>
-                    You have 3 high-priority tasks due today. Consider using the Pomodoro technique to stay focused.
-                  </Text>
-                </View>
-              </View>
-              <View style={styles.suggestionActions}>
-                <Button title="Start Timer" size="small" onPress={() => {}} />
-                <Button title="Reschedule" variant="secondary" size="small" onPress={() => {}} />
-              </View>
-            </GlassCard>
-          </View>
-
-          {/* Quick Actions */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>AI Tools</Text>
-            
-            <View style={styles.toolsGrid}>
-              <GlassCard style={styles.toolCard} onPress={() => {}}>
-                <View style={styles.toolIcon}>
-                  <Ionicons name="analytics" size={28} color="#FF6B35" />
-                </View>
-                <Text style={styles.toolTitle}>Analyze</Text>
-                <Text style={styles.toolDescription}>Get insights on your productivity patterns</Text>
-              </GlassCard>
-
-              <GlassCard style={styles.toolCard} onPress={() => {}}>
-                <View style={styles.toolIcon}>
-                  <Ionicons name="rocket" size={28} color="#4CAF50" />
-                </View>
-                <Text style={styles.toolTitle}>Optimize</Text>
-                <Text style={styles.toolDescription}>AI-powered task prioritization</Text>
-              </GlassCard>
-            </View>
-
-            <View style={styles.toolsGrid}>
-              <GlassCard style={styles.toolCard} onPress={() => {}}>
-                <View style={styles.toolIcon}>
-                  <Ionicons name="chatbubbles" size={28} color="#FFFFFF" />
-                </View>
-                <Text style={styles.toolTitle}>Chat</Text>
-                <Text style={styles.toolDescription}>Ask me anything about productivity</Text>
-              </GlassCard>
-
-              <GlassCard style={styles.toolCard} onPress={() => {}}>
-                <View style={styles.toolIcon}>
-                  <Ionicons name="calendar" size={28} color="#FF6B35" />
-                </View>
-                <Text style={styles.toolTitle}>Plan</Text>
-                <Text style={styles.toolDescription}>Smart schedule optimization</Text>
-              </GlassCard>
-            </View>
-          </View>
-
-          {/* Recent Conversations */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Recent Chats</Text>
-            
-            <GlassCard>
-              <View style={styles.chatItem}>
-                <View style={styles.chatIcon}>
-                  <Ionicons name="chatbubble-ellipses" size={20} color="#FF6B35" />
-                </View>
-                <View style={styles.chatContent}>
-                  <Text style={styles.chatTitle}>How to stay motivated?</Text>
-                  <Text style={styles.chatPreview}>We discussed setting micro-goals and celebrating small wins...</Text>
-                  <Text style={styles.chatTime}>2 hours ago</Text>
-                </View>
-              </View>
-              <View style={styles.chatDivider} />
-              <View style={styles.chatItem}>
-                <View style={styles.chatIcon}>
-                  <Ionicons name="chatbubble-ellipses" size={20} color="#4CAF50" />
-                </View>
-                <View style={styles.chatContent}>
-                  <Text style={styles.chatTitle}>Task prioritization help</Text>
-                  <Text style={styles.chatPreview}>I helped you organize tasks using the Eisenhower Matrix...</Text>
-                  <Text style={styles.chatTime}>Yesterday</Text>
-                </View>
-              </View>
-            </GlassCard>
-          </View>
+            </>
+          )}
         </ScrollView>
-        
-        {/* Chatbox UI */}
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          keyboardVerticalOffset={80}
-        >
-          <View style={styles.chatContainer}>
-            <ScrollView
-              style={styles.messagesContainer}
-              ref={scrollViewRef}
-              onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
-            >
-              {messages.map((msg, idx) => (
-                <View
-                  key={idx}
-                  style={msg.role === 'user' ? styles.userMsg : styles.assistantMsg}
-                >
-                  <Text style={styles.msgText}>{msg.content}</Text>
-                </View>
-              ))}
-            </ScrollView>
-            <View style={styles.inputRow}>
-              <TextInput
-                style={styles.input}
-                value={input}
-                onChangeText={setInput}
-                placeholder="Type your message..."
-                placeholderTextColor="#aaa"
-                editable={!loading}
-                onSubmitEditing={sendMessage}
-                returnKeyType="send"
-              />
-              <Button
-                title={loading ? '...' : 'Send'}
-                onPress={sendMessage}
-                disabled={loading || !input.trim()}
-                size="small"
-                style={styles.sendBtn}
-              />
-            </View>
-          </View>
-        </KeyboardAvoidingView>
       </LinearGradient>
     </AppLayout>
   );
@@ -430,6 +499,333 @@ const styles = StyleSheet.create({
   suggestionContent: {
     flex: 1,
   },
+  // Timeline specific styles
+  timelineHeader: {
+    paddingHorizontal: 24,
+    marginBottom: 40,
+    alignItems: 'center',
+  },
+  startButton: {
+    backgroundColor: '#FF6B35',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+    shadowColor: '#FF6B35',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  startButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    fontFamily: 'Inter',
+    letterSpacing: 1,
+  },
+  timelineTitle: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    fontFamily: 'Inter',
+    letterSpacing: -0.5,
+    marginBottom: 8,
+  },
+  timelineSubtitle: {
+    fontSize: 16,
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontFamily: 'Inter',
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
+  timelineContainer: {
+    paddingHorizontal: 24,
+    paddingBottom: 100,
+  },
+  timelineLine: {
+    position: 'absolute',
+    left: 24,
+    top: 0,
+    bottom: 0,
+    width: 2,
+    backgroundColor: 'rgba(255, 107, 53, 0.4)',
+    zIndex: 0,
+  },
+  timelineNodeContainer: {
+    flexDirection: 'row',
+    marginBottom: 24,
+    alignItems: 'flex-start',
+    width: '100%',
+  },
+  timelineNodeLeft: {
+    alignItems: 'flex-start',
+  },
+  timelineNodeRight: {
+    alignItems: 'flex-end',
+  },
+  timelineItemWrapper: {
+    flex: 1,
+    marginLeft: 32,
+    maxWidth: "100%"
+  },
+  itemLeft: {
+    alignSelf: 'flex-start',
+    alignItems: 'flex-start',
+  },
+  itemRight: {
+    alignSelf: 'flex-start',
+    alignItems: 'flex-start',
+  },
+  stepCircle: {
+    position: 'absolute',
+    left: 14,
+    top: 8,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
+    zIndex: 2,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
+  stepNumber: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    fontFamily: 'Inter',
+  },
+  goalCard: {
+    borderRadius: 12,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 3,
+    width: '100%',
+    maxWidth: screenWidth - 100,
+  },
+  goalCardContent: {
+    padding: 14,
+  },
+  taskRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  goalTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    fontFamily: 'Inter',
+    marginLeft: 8,
+    flex: 1,
+  },
+  goalDescription: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontFamily: 'Inter',
+    lineHeight: 16,
+    marginBottom: 10,
+  },
+  progressSection: {
+    marginBottom: 8,
+  },
+  progressBarContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 3,
+  },
+  progressBar: {
+    flex: 1,
+    height: 3,
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    borderRadius: 2,
+    overflow: 'hidden',
+    marginRight: 6,
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 2,
+  },
+  progressPercentage: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    fontFamily: 'Inter',
+    minWidth: 24,
+    textAlign: 'center',
+  },
+  progressLabel: {
+    fontSize: 10,
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontFamily: 'Inter',
+  },
+  dateText: {
+    fontSize: 10,
+    color: '#FF6B35',
+    fontFamily: 'Inter',
+    fontWeight: '500',
+    textAlign: 'right',
+    marginTop: 4,
+  },
+  // Original timeline styles (kept for backward compatibility)
+  connectionLine: {
+    position: 'absolute',
+    top: 20,
+    width: 20,
+    height: 2,
+    backgroundColor: 'rgba(255, 107, 53, 0.5)',
+    zIndex: 1,
+  },
+  connectionLineLeft: {
+    right: -22,
+  },
+  connectionLineRight: {
+    left: -22,
+  },
+  timelineDot: {
+    position: 'absolute',
+    top: 10,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 3,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    zIndex: 2,
+    left: '50%',
+    marginLeft: -20,
+  },
+  timelineDotInner: {
+    flex: 1,
+    borderRadius: 17,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  timelineCard: {
+    borderLeftWidth: 4,
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  cardBlur: {
+    borderRadius: 16,
+  },
+  cardContent: {
+    padding: 20,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  cardIconContainer: {
+    marginRight: 12,
+  },
+  cardIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cardTitleContainer: {
+    flex: 1,
+  },
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    fontFamily: 'Inter',
+    marginBottom: 2,
+  },
+  cardSubtitle: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontFamily: 'Inter',
+  },
+  progressContainer: {
+    marginBottom: 12,
+  },
+  progressText: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.6)',
+    fontFamily: 'Inter',
+  },
+  cardDescription: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontFamily: 'Inter',
+    lineHeight: 20,
+    marginBottom: 12,
+  },
+  cardMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  cardDate: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.5)',
+    fontFamily: 'Inter',
+  },
+  categoryTag: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+  },
+  categoryText: {
+    fontSize: 10,
+    fontWeight: '600',
+    fontFamily: 'Inter',
+    textTransform: 'uppercase',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 100,
+  },
+  loadingText: {
+    color: '#FF6B35',
+    fontSize: 16,
+    marginTop: 16,
+    fontFamily: 'Inter',
+    textAlign: 'center',
+  },
+  emptyTimeline: {
+    alignItems: 'center',
+    paddingVertical: 80,
+  },
+  emptyIconContainer: {
+    marginBottom: 24,
+    opacity: 0.6,
+  },
+  emptyTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    fontFamily: 'Inter',
+    marginBottom: 8,
+  },
+  emptySubtitle: {
+    fontSize: 16,
+    color: 'rgba(255, 255, 255, 0.6)',
+    fontFamily: 'Inter',
+    textAlign: 'center',
+    lineHeight: 24,
+  },
+  // Original styles (keeping for backward compatibility)
   suggestionTitle: {
     fontSize: 17,
     fontWeight: '600',
@@ -588,4 +984,5 @@ const styles = StyleSheet.create({
   sendBtn: {
     minWidth: 60,
   },
+
 }); 

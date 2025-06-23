@@ -258,7 +258,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#e5e7eb',
   },
   dividerText: {
-    marginHorizontal: 16,
+    marginLeft: 16,
+    marginRight: 16,
     color: '#6b7280',
     fontSize: 14,
   },

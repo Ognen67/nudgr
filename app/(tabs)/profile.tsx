@@ -207,7 +207,8 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 8,
     shadowColor: 'rgba(255, 255, 255, 0.3)',
-    marginHorizontal: 24,
+    marginLeft: 16,
+    marginRight: 16,
   },
   profileBlur: {
     borderRadius: 16,
@@ -311,6 +312,7 @@ const styles = StyleSheet.create({
   },
   logoutButton: {
     marginTop: 12,
-    marginHorizontal: 24,
+    marginLeft: 16,
+    marginRight: 16,
   },
 }); 

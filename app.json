@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Nudger - AI Productivity App",
-    "slug": "nudger-productivity",
+    "slug": "nudgr",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -10,7 +10,11 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.nudger.productivity"
+      "bundleIdentifier": "com.nudger.productivity",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "This app needs access to the microphone to record voice notes and convert them to text.",
+        "NSSpeechRecognitionUsageDescription": "This app needs access to speech recognition to convert your voice to text."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -18,7 +22,12 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.nudger.productivity"
+      "package": "com.nudger.productivity",
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.INTERNET",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -35,6 +44,12 @@
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
+      ],
+      [
+        "expo-av",
+        {
+          "microphonePermission": "Allow Nudger to access your microphone to record voice notes."
+        }
       ]
     ],
     "experiments": {
@@ -45,8 +60,9 @@
         "origin": false
       },
       "eas": {
-        "projectId": "your-eas-project-id"
+        "projectId": "c17ab212-73b2-4e5d-a61d-c7c4aadf38c5"
       }
-    }
+    },
+    "owner": "zeddaai"
   }
 }

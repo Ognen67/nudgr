@@ -8,12 +8,25 @@
     "scheme": "nudger",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/images/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.nudger.productivity",
+      "deploymentTarget": "16.1",
       "infoPlist": {
         "NSMicrophoneUsageDescription": "This app needs access to the microphone to record voice notes and convert them to text.",
-        "NSSpeechRecognitionUsageDescription": "This app needs access to speech recognition to convert your voice to text."
+        "NSSpeechRecognitionUsageDescription": "This app needs access to speech recognition to convert your voice to text.",
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSSupportsLiveActivities": true,
+        "NSSupportsLiveActivitiesFrequentUpdates": true
+      },
+      "entitlements": {
+        "com.apple.developer.ActivityKit": true,
+        "com.apple.developer.ActivityKit.frequent-updates": true
       }
     },
     "android": {
@@ -37,12 +50,9 @@
     "plugins": [
       "expo-router",
       [
-        "expo-splash-screen",
+        "expo-dev-client",
         {
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
-          "resizeMode": "contain",
-          "backgroundColor": "#ffffff"
+          "addGeneratedScheme": false
         }
       ],
       [

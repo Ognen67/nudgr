@@ -1,13 +1,14 @@
 {
   "cli": {
-    "version": ">= 13.2.1"
+    "version": ">= 13.2.2"
   },
   "build": {
     "development": {
       "developmentClient": true,
       "distribution": "internal",
       "ios": {
-        "resourceClass": "m1-medium"
+        "simulator": false,
+        "device": true
       },
       "android": {
         "buildType": "apk"

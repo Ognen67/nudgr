@@ -16,6 +16,8 @@ import {
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import KeyboardAvoidingWrapper from './KeyboardAvoidingWrapper';
+// import { useVoiceRecording } from '@/hooks/useVoiceRecording';
+import { API } from '@/config/api';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -39,6 +41,8 @@ const GlassChat: React.FC<{
     const borderRadius = useRef(new Animated.Value(0)).current;
     const marginHorizontal = useRef(new Animated.Value(0)).current;
     const glowOpacity = useRef(new Animated.Value(0)).current;
+    const pulseScale = useRef(new Animated.Value(1)).current;
+    const pulseGlow = useRef(new Animated.Value(0)).current;
 
     const handleFocus = () => {
       setIsFocused(true);

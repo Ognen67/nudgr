@@ -17,6 +17,8 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { API } from '@/config/api';
+import { useFocusEffect } from '@react-navigation/native';
 
 interface Task {
   id: string;
@@ -124,10 +126,13 @@ export default function Goals() {
     VT323: require('@/assets/fonts/VT323-Regular.ttf'),
   });
 
-  // Fetch goals and tasks from the backend
-  useEffect(() => {
-    fetchGoalsAndTasks();
-  }, []);
+  // Replace the useEffect for fetchGoalsAndTasks with useFocusEffect
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchGoalsAndTasks();
+      setExpandedGoals(new Set()); // Reset expanded goals for clean view
+    }, [])
+  );
 
   // Add a refresh when the screen is focused
   // useEffect(() => {
@@ -140,8 +145,9 @@ export default function Goals() {
     try {
       setLoading(true);
       
-      console.log("Fetching tasks from API...");
-      console.log("Tasks endpoint:", ENDPOINTS.TASKS); // Log the actual endpoint URL
+      // Fetch all tasks (including standalone AI-generated ones)
+      const tasksResponse = await fetch(API.tasks);
+      const tasksData = await tasksResponse.json();
       
       // Fetch all tasks (including standalone AI-generated ones)
       try {
@@ -165,11 +171,7 @@ export default function Goals() {
         
         // If you have goals, fetch them too
         try {
-          console.log("Fetching goals from API...");
-          console.log("Goals endpoint:", ENDPOINTS.GOALS); // Log the actual endpoint URL
-          
-          const goalsResponse = await fetch(ENDPOINTS.GOALS);
-          console.log("Goals response status:", goalsResponse.status);
+          const goalsResponse = await fetch(API.goals);
           
           if (!goalsResponse.ok) {
             console.error(`Goals API error: ${goalsResponse.status} - ${goalsResponse.statusText}`);
@@ -300,7 +302,7 @@ export default function Goals() {
 
     // Make API call in the background
     try {
-      const response = await fetch(`${ENDPOINTS.TASKS}/${taskId}`, {
+      const response = await fetch(`${API.tasks}/${taskId}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -865,7 +867,8 @@ const styles = StyleSheet.create({
     paddingVertical: 32,
     alignItems: 'center',
     justifyContent: 'center',
-    flex: 1,
+  },
+  emptyTasksText: {
     color: 'rgba(255, 255, 255, 0.6)',
     fontSize: 14,
     fontFamily: 'Inter',

@@ -5,57 +5,37 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Dimensions,
   Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
-import { Button } from '@/components/ui/Button';
 import { AppLayout } from '@/components/ui/AppLayout';
+import { GlassCard } from '@/components/ui/GlassCard';
+import LiveActivityDemo from '@/components/LiveActivityDemo';
 import { useRouter } from 'expo-router';
+import { useFonts } from 'expo-font';
 
-// Frosted Glass Card Component
-const ProfileCard: React.FC<{
+const { width } = Dimensions.get('window');
+
+interface ProfileCardProps {
   children: React.ReactNode;
-  onPress?: () => void;
-}> = ({ children, onPress }) => {
-  if (onPress) {
-    return (
-      <TouchableOpacity 
-        style={styles.profileCard}
-        onPress={onPress}
-        activeOpacity={0.8}
-      >
-        <BlurView 
-          intensity={150} 
-          tint="systemUltraThinMaterialDark" 
-          style={styles.profileBlur}
-        >
-          <View style={styles.profileOverlay}>
-            {children}
-          </View>
-        </BlurView>
-      </TouchableOpacity>
-    );
-  } else {
-    return (
-      <View style={styles.profileCard}>
-        <BlurView 
-          intensity={150} 
-          tint="systemUltraThinMaterialDark" 
-          style={styles.profileBlur}
-        >
-          <View style={styles.profileOverlay}>
-            {children}
-          </View>
-        </BlurView>
-      </View>
-    );
-  }
+}
+
+const ProfileCard: React.FC<ProfileCardProps> = ({ children }) => {
+  return (
+    <GlassCard style={styles.profileCard}>
+      {children}
+    </GlassCard>
+  );
 };
 
-export default function ProfileTab() {
+export default function Profile() {
   const router = useRouter();
+
+  const [fontsLoaded] = useFonts({
+    VT323: require('@/assets/fonts/VT323-Regular.ttf'),
+  });
 
   const handleEditProfile = () => {
     console.log('Edit profile');
@@ -69,18 +49,26 @@ export default function ProfileTab() {
     console.log('Logout');
   };
 
-  return (
-    <AppLayout showChatbox={false}>
-      <LinearGradient
-        colors={['#000000', '#1a1a1a', '#2a2a2a']}
-        style={styles.container}
-      >
-        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-          {/* Header */}
-          <View style={styles.header}>
-            <Text style={styles.headerTitle}>Profile</Text>
-          </View>
+  if (!fontsLoaded) return null;
 
+  return (
+    <AppLayout>
+      <LinearGradient
+        colors={['rgba(255,107,53,0.08)', '#232323', '#181818']}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
+        style={styles.gradient}
+      >
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Profile</Text>
+        </View>
+
+        <ScrollView 
+          style={styles.scrollView} 
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
           {/* Profile Info Card */}
           <ProfileCard>
             <View style={styles.profileInfo}>
@@ -95,82 +83,55 @@ export default function ProfileTab() {
             </View>
           </ProfileCard>
 
+          {/* Live Activity Demo Card */}
+          <View style={styles.demoSection}>
+            <Text style={styles.sectionTitle}>🎯 Live Activity Demo</Text>
+            <Text style={styles.sectionSubtitle}>
+              Test Dynamic Island integration on your iPhone 16 Pro
+            </Text>
+            <LiveActivityDemo />
+          </View>
+
           {/* Stats Card */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Your Progress</Text>
-            <ProfileCard>
-              <View style={styles.statsGrid}>
-                <View style={styles.statItem}>
-                  <Text style={styles.statNumber}>47</Text>
-                  <Text style={styles.statLabel}>Tasks Done</Text>
-                </View>
-                <View style={styles.statItem}>
-                  <Text style={styles.statNumber}>12</Text>
-                  <Text style={styles.statLabel}>Goals Set</Text>
-                </View>
-                <View style={styles.statItem}>
-                  <Text style={styles.statNumber}>85%</Text>
-                  <Text style={styles.statLabel}>Success Rate</Text>
-                </View>
+          <ProfileCard>
+            <Text style={styles.sectionTitle}>Your Stats</Text>
+            <View style={styles.statsContainer}>
+              <View style={styles.statItem}>
+                <Text style={styles.statNumber}>24</Text>
+                <Text style={styles.statLabel}>Tasks Completed</Text>
               </View>
-            </ProfileCard>
-          </View>
+              <View style={styles.statItem}>
+                <Text style={styles.statNumber}>5</Text>
+                <Text style={styles.statLabel}>Goals Achieved</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text style={styles.statNumber}>12</Text>
+                <Text style={styles.statLabel}>Day Streak</Text>
+              </View>
+            </View>
+          </ProfileCard>
 
-          {/* Settings Section */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Settings</Text>
+          {/* Actions Card */}
+          <ProfileCard>
+            <Text style={styles.sectionTitle}>Account</Text>
+            <TouchableOpacity style={styles.actionItem} onPress={handleEditProfile}>
+              <Ionicons name="person-outline" size={24} color="#FF6B35" />
+              <Text style={styles.actionText}>Edit Profile</Text>
+              <Ionicons name="chevron-forward" size={20} color="rgba(255, 255, 255, 0.6)" />
+            </TouchableOpacity>
             
-            <ProfileCard onPress={handleEditProfile}>
-              <View style={styles.settingItem}>
-                <View style={styles.settingIcon}>
-                  <Ionicons name="person-outline" size={20} color="#FF6B35" />
-                </View>
-                <Text style={styles.settingText}>Edit Profile</Text>
-                <Ionicons name="chevron-forward" size={20} color="rgba(255, 255, 255, 0.5)" />
-              </View>
-            </ProfileCard>
-
-            <ProfileCard onPress={() => console.log('Notifications')}>
-              <View style={styles.settingItem}>
-                <View style={styles.settingIcon}>
-                  <Ionicons name="notifications-outline" size={20} color="#FF6B35" />
-                </View>
-                <Text style={styles.settingText}>Notifications</Text>
-                <Ionicons name="chevron-forward" size={20} color="rgba(255, 255, 255, 0.5)" />
-              </View>
-            </ProfileCard>
-
-            <ProfileCard onPress={() => console.log('Privacy')}>
-              <View style={styles.settingItem}>
-                <View style={styles.settingIcon}>
-                  <Ionicons name="shield-outline" size={20} color="#FF6B35" />
-                </View>
-                <Text style={styles.settingText}>Privacy & Security</Text>
-                <Ionicons name="chevron-forward" size={20} color="rgba(255, 255, 255, 0.5)" />
-              </View>
-            </ProfileCard>
-
-            <ProfileCard onPress={handleSettings}>
-              <View style={styles.settingItem}>
-                <View style={styles.settingIcon}>
-                  <Ionicons name="settings-outline" size={20} color="#FF6B35" />
-                </View>
-                <Text style={styles.settingText}>App Settings</Text>
-                <Ionicons name="chevron-forward" size={20} color="rgba(255, 255, 255, 0.5)" />
-              </View>
-            </ProfileCard>
-          </View>
-
-          {/* Actions */}
-          <View style={styles.section}>
-            <Button
-              title="Sign Out"
-              icon="log-out-outline"
-              onPress={handleLogout}
-              variant="secondary"
-              style={styles.logoutButton}
-            />
-          </View>
+            <TouchableOpacity style={styles.actionItem} onPress={handleSettings}>
+              <Ionicons name="settings-outline" size={24} color="#FF6B35" />
+              <Text style={styles.actionText}>Settings</Text>
+              <Ionicons name="chevron-forward" size={20} color="rgba(255, 255, 255, 0.6)" />
+            </TouchableOpacity>
+            
+            <TouchableOpacity style={styles.actionItem} onPress={handleLogout}>
+              <Ionicons name="log-out-outline" size={24} color="#FF4444" />
+              <Text style={[styles.actionText, { color: '#FF4444' }]}>Logout</Text>
+              <Ionicons name="chevron-forward" size={20} color="rgba(255, 255, 255, 0.6)" />
+            </TouchableOpacity>
+          </ProfileCard>
         </ScrollView>
       </LinearGradient>
     </AppLayout>
@@ -178,59 +139,46 @@ export default function ProfileTab() {
 }
 
 const styles = StyleSheet.create({
-  container: {
+  gradient: {
     flex: 1,
+  },
+  header: {
+    paddingHorizontal: 24,
+    paddingTop: 60,
+    paddingBottom: 20,
+  },
+  headerTitle: {
+    fontSize: 32,
+    fontWeight: '400',
+    color: '#fff',
+    fontFamily: 'VT323',
+    letterSpacing: 2,
+    textTransform: 'lowercase',
+    textShadowColor: 'rgba(255, 107, 53, 0.18)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 8,
   },
   scrollView: {
     flex: 1,
-    paddingTop: 20,
   },
-  header: {
-    alignItems: 'center',
+  scrollContent: {
     paddingHorizontal: 24,
-    paddingTop: 10,
-    paddingBottom: 24,
-  },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    fontFamily: 'Inter',
-    textAlign: 'center',
+    paddingBottom: 100,
   },
   profileCard: {
-    borderRadius: 16,
-    marginBottom: 16,
-    overflow: 'hidden',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    elevation: 8,
-    shadowColor: 'rgba(255, 255, 255, 0.3)',
-    marginLeft: 16,
-    marginRight: 16,
-  },
-  profileBlur: {
-    borderRadius: 16,
-  },
-  profileOverlay: {
+    marginBottom: 20,
     padding: 24,
-    borderWidth: 1,
-    borderRadius: 16,
-    backgroundColor: 'rgba(0, 0, 0, 0.2)',
-    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   profileInfo: {
     alignItems: 'center',
-    paddingVertical: 16,
   },
   avatarContainer: {
-    marginBottom: 20,
+    marginBottom: 16,
   },
   avatar: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     backgroundColor: 'rgba(255, 107, 53, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -238,81 +186,66 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 107, 53, 0.3)',
   },
   userName: {
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: '700',
     color: '#FFFFFF',
-    fontFamily: 'Inter',
-    marginBottom: 6,
+    marginBottom: 4,
   },
   userEmail: {
     fontSize: 16,
     color: 'rgba(255, 255, 255, 0.7)',
-    fontFamily: 'Inter',
-    marginBottom: 12,
+    marginBottom: 4,
   },
   userRole: {
     fontSize: 14,
     color: '#FF6B35',
-    fontFamily: 'Inter',
-    fontWeight: '500',
+    fontStyle: 'italic',
   },
-  section: {
-    marginBottom: 28,
+  demoSection: {
+    marginBottom: 20,
   },
   sectionTitle: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '700',
     color: '#FFFFFF',
-    fontFamily: 'Inter',
-    marginBottom: 16,
-    paddingHorizontal: 24,
+    marginBottom: 8,
   },
-  statsGrid: {
+  sectionSubtitle: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.6)',
+    marginBottom: 16,
+    fontStyle: 'italic',
+  },
+  statsContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'space-around',
+    marginTop: 16,
   },
   statItem: {
     alignItems: 'center',
-    flex: 1,
   },
   statNumber: {
-    fontSize: 30,
-    fontWeight: '800',
+    fontSize: 28,
+    fontWeight: '700',
     color: '#FF6B35',
-    fontFamily: 'Inter',
-    textShadowColor: 'rgba(255, 107, 53, 0.5)',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 10,
+    marginBottom: 4,
   },
   statLabel: {
-    fontSize: 14,
+    fontSize: 12,
     color: 'rgba(255, 255, 255, 0.7)',
-    fontFamily: 'Inter',
-    marginTop: 6,
+    textAlign: 'center',
   },
-  settingItem: {
+  actionItem: {
     flexDirection: 'row',
     alignItems: 'center',
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
   },
-  settingIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 107, 53, 0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 20,
-  },
-  settingText: {
-    flex: 1,
+  actionText: {
     fontSize: 16,
     color: '#FFFFFF',
-    fontFamily: 'Inter',
-    fontWeight: '500',
-  },
-  logoutButton: {
-    marginTop: 12,
     marginLeft: 16,
-    marginRight: 16,
+    flex: 1,
   },
 }); 

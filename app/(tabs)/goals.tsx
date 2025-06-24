@@ -1,21 +1,22 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { AppLayout } from '@/components/ui/AppLayout';
+import { GlassCard } from '@/components/ui/GlassCard';
+import { ENDPOINTS } from '@/utils/api';
+import { Ionicons } from '@expo/vector-icons';
+import { useFonts } from 'expo-font';
+import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
+import React, { useEffect, useRef, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
   ActivityIndicator,
   Alert,
   Animated,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import * as Haptics from 'expo-haptics';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
-import { GlassCard } from '@/components/ui/GlassCard';
-import { AppLayout } from '@/components/ui/AppLayout';
-import { useRouter } from 'expo-router';
-import { useFonts } from 'expo-font';
 
 interface Task {
   id: string;
@@ -26,6 +27,7 @@ interface Task {
   estimatedTime?: number;
   aiGenerated: boolean;
   goalId?: string | null;
+  dueDate?: string; // Add due date property
 }
 
 interface Goal {
@@ -116,6 +118,7 @@ export default function Goals() {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
+
   // Load VT323 font for the title
   const [fontsLoaded] = useFonts({
     VT323: require('@/assets/fonts/VT323-Regular.ttf'),
@@ -126,15 +129,34 @@ export default function Goals() {
     fetchGoalsAndTasks();
   }, []);
 
+  // Add a refresh when the screen is focused
+  // useEffect(() => {
+  //   if (isFocused) {
+  //     fetchGoalsAndTasks();
+  //   }
+  // }, [isFocused]);
+
   const fetchGoalsAndTasks = async () => {
     try {
       setLoading(true);
       
-      // Fetch all tasks (including standalone AI-generated ones)
-      const tasksResponse = await fetch('http://localhost:3000/api/tasks');
-      const tasksData = await tasksResponse.json();
+      console.log("Fetching tasks from API...");
+      console.log("Tasks endpoint:", ENDPOINTS.TASKS); // Log the actual endpoint URL
       
-      if (tasksResponse.ok) {
+      // Fetch all tasks (including standalone AI-generated ones)
+      try {
+        const tasksResponse = await fetch(ENDPOINTS.TASKS);
+        console.log("Tasks response status:", tasksResponse.status);
+        
+        if (!tasksResponse.ok) {
+          // If server returns an error response (e.g. 404, 500)
+          console.error(`Tasks API error: ${tasksResponse.status} - ${tasksResponse.statusText}`);
+          throw new Error(`Server responded with ${tasksResponse.status}: ${tasksResponse.statusText}`);
+        }
+        
+        const tasksData = await tasksResponse.json();
+        console.log("Tasks fetched:", tasksData);
+        
         // Separate standalone tasks (no goalId) from goal-related tasks
         const standaloneTasksList = tasksData.filter((task: Task) => !task.goalId);
         const goalTasks = tasksData.filter((task: Task) => task.goalId);
@@ -143,50 +165,75 @@ export default function Goals() {
         
         // If you have goals, fetch them too
         try {
-          const goalsResponse = await fetch('http://localhost:3000/api/goals');
-          const goalsData = await goalsResponse.json();
+          console.log("Fetching goals from API...");
+          console.log("Goals endpoint:", ENDPOINTS.GOALS); // Log the actual endpoint URL
           
-          if (goalsResponse.ok) {
-            // Map goals with their tasks
-            const goalsWithTasks = goalsData.map((goal: any) => ({
+          const goalsResponse = await fetch(ENDPOINTS.GOALS);
+          console.log("Goals response status:", goalsResponse.status);
+          
+          if (!goalsResponse.ok) {
+            console.error(`Goals API error: ${goalsResponse.status} - ${goalsResponse.statusText}`);
+            throw new Error(`Server responded with ${goalsResponse.status}: ${goalsResponse.statusText}`);
+          }
+          
+          const goalsData = await goalsResponse.json();
+          console.log("Goals fetched:", goalsData);
+          
+          // Add debug logs to see what's being compared
+          console.log("First goal ID:", goalsData[0]?.id, "Type:", typeof goalsData[0]?.id);
+          console.log("Sample task goalId:", goalTasks[0]?.goalId, "Type:", typeof goalTasks[0]?.goalId);
+          
+          // Map goals with their tasks - ensure string comparison for IDs
+          const goalsWithTasks = goalsData.map((goal: any) => {
+            // Filter tasks that belong to this goal (convert IDs to strings for comparison)
+            const goalTasksList = goalTasks.filter((task: Task) => 
+              String(task.goalId) === String(goal.id)
+            );
+            
+            console.log(`Goal ${goal.id} has ${goalTasksList.length} tasks`);
+            
+            return {
               ...goal,
               icon: goal.icon || 'briefcase', // Default icon
-              tasks: goalTasks.filter((task: Task) => task.goalId === goal.id),
-              completedTasks: goalTasks.filter((task: Task) => task.goalId === goal.id && task.completed).length,
-              totalTasks: goalTasks.filter((task: Task) => task.goalId === goal.id).length
-            }));
-
-            // Create an "Unassigned Tasks" goal if there are standalone tasks
-            const allGoals = [...goalsWithTasks];
-            if (standaloneTasksList.length > 0) {
-              allGoals.push({
-                id: 'unassigned',
-                title: 'Unassigned Tasks',
-                icon: 'sparkles',
-                tasks: standaloneTasksList,
-                completedTasks: standaloneTasksList.filter((task: Task) => task.completed).length,
-                totalTasks: standaloneTasksList.length
-              });
-            }
-            
-            setGoals(allGoals);
+              tasks: goalTasksList,
+              completedTasks: goalTasksList.filter((task: Task) => task.completed).length,
+              totalTasks: goalTasksList.length
+            };
+          });
+          
+          // Create an "Unassigned Tasks" goal if there are standalone tasks
+          const allGoals = [...goalsWithTasks];
+          if (standaloneTasksList.length > 0) {
+            allGoals.push({
+              id: 'unassigned',
+              title: 'Unassigned Tasks',
+              icon: 'sparkles',
+              tasks: standaloneTasksList,
+              completedTasks: standaloneTasksList.filter((task: Task) => task.completed).length,
+              totalTasks: standaloneTasksList.length
+            });
           }
+          
+          setGoals(allGoals);
         } catch (goalError) {
-          console.log('No goals endpoint or goals available');
+          console.error('Error fetching goals:', goalError);
           // Create only the unassigned tasks goal
-                     if (standaloneTasksList.length > 0) {
-             setGoals([{
-               id: 'unassigned',
-               title: 'Unassigned Tasks',
-               icon: 'sparkles',
-               tasks: standaloneTasksList,
-               completedTasks: standaloneTasksList.filter((task: Task) => task.completed).length,
-               totalTasks: standaloneTasksList.length
-             }]);
-           } else {
-             setGoals([]);
-           }
+          if (standaloneTasksList.length > 0) {
+            setGoals([{
+              id: 'unassigned',
+              title: 'Unassigned Tasks',
+              icon: 'sparkles',
+              tasks: standaloneTasksList,
+              completedTasks: standaloneTasksList.filter((task: Task) => task.completed).length,
+              totalTasks: standaloneTasksList.length
+            }]);
+          } else {
+            setGoals([]);
+          }
         }
+      } catch (error) {
+        console.error('Error fetching tasks:', error);
+        Alert.alert('Error', 'Failed to load tasks');
       }
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -253,7 +300,7 @@ export default function Goals() {
 
     // Make API call in the background
     try {
-      const response = await fetch(`http://localhost:3000/api/tasks/${taskId}`, {
+      const response = await fetch(`${ENDPOINTS.TASKS}/${taskId}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -359,7 +406,7 @@ export default function Goals() {
         style={styles.container}
       >
         <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-          {/* Top Navigation */}
+          {/* Top Navigation with added Refresh button */}
           <View style={styles.topNav}>
             <TouchableOpacity
               style={styles.aiCoachButton}
@@ -375,15 +422,27 @@ export default function Goals() {
               <Text style={styles.nudgrTitle}>reflect</Text>
             </View>
 
-            <TouchableOpacity
-              style={styles.profileButton}
-              onPress={handleProfilePress}
-              activeOpacity={0.8}
-            >
-              <View style={styles.profileButtonContainer}>
-                <Ionicons name="person-circle" size={24} color="#FF6B35" />
-              </View>
-            </TouchableOpacity>
+            <View style={styles.rightButtonsContainer}>
+              <TouchableOpacity
+                style={styles.refreshButton}
+                onPress={fetchGoalsAndTasks}
+                activeOpacity={0.8}
+              >
+                <View style={styles.refreshButtonContainer}>
+                  <Ionicons name="refresh" size={20} color="#FF6B35" />
+                </View>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={styles.profileButton}
+                onPress={handleProfilePress}
+                activeOpacity={0.8}
+              >
+                <View style={styles.profileButtonContainer}>
+                  <Ionicons name="person-circle" size={24} color="#FF6B35" />
+                </View>
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* Content Area */}
@@ -536,6 +595,24 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   profileButtonContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 107, 53, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 107, 53, 0.3)',
+  },
+  rightButtonsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  refreshButton: {
+    alignItems: 'center',
+  },
+  refreshButtonContainer: {
     width: 40,
     height: 40,
     borderRadius: 20,
@@ -785,15 +862,13 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   emptyTasksContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
     paddingVertical: 32,
-  },
-  emptyTasksText: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    flex: 1,
     color: 'rgba(255, 255, 255, 0.6)',
     fontSize: 14,
     fontFamily: 'Inter',
     fontStyle: 'italic',
   },
-}); 
+});

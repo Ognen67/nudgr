@@ -1,26 +1,22 @@
-import React, { useState, useRef, useEffect } from 'react';
+import { AppLayout } from '@/components/ui/AppLayout';
+import { GlassCard } from '@/components/ui/GlassCard';
+import { ENDPOINTS } from '@/utils/api';
+import { Ionicons } from '@expo/vector-icons';
+import { useFonts } from 'expo-font';
+import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
+import React, { useEffect, useRef, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TextInput,
-  KeyboardAvoidingView,
-  Platform,
-  TouchableOpacity,
   ActivityIndicator,
   Animated,
   Dimensions,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
-import { Ionicons } from '@expo/vector-icons';
-import { Button, NeonNumber } from '@/components/ui/Button';
-import { GlassCard } from '@/components/ui/GlassCard';
-import { AppLayout } from '@/components/ui/AppLayout';
-import { useRouter } from 'expo-router';
-import { useFonts } from 'expo-font';
-import * as Haptics from 'expo-haptics';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -34,6 +30,7 @@ interface Task {
   aiGenerated: boolean;
   goalId?: string | null;
   createdAt?: string;
+  dueDate?: string; // Add due date property
 }
 
 interface Goal {
@@ -184,16 +181,21 @@ export default function Timeline() {
     try {
       setLoading(true);
       
-      // Fetch goals
-      const goalsResponse = await fetch('http://localhost:3000/api/goals');
+      // Fetch goals using the centralized endpoint
+      const goalsResponse = await fetch(ENDPOINTS.GOALS);
       const goalsData = await goalsResponse.json();
       
+
+      console.log("Fetched goals:", goalsData);
       if (goalsResponse.ok) {
+        console.log("Goals fetched successfully:", goalsData);
         setGoals(goalsData);
         
         // Transform goals into timeline items
         const timeline = createTimelineFromGoals(goalsData);
         setTimelineItems(timeline);
+      } else {
+        console.error("Failed to fetch goals:", goalsResponse.status);
       }
     } catch (error) {
       console.error('Error fetching goals:', error);
@@ -985,4 +987,4 @@ const styles = StyleSheet.create({
     minWidth: 60,
   },
 
-}); 
+});

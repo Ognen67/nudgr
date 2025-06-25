@@ -10,6 +10,7 @@ export const ENDPOINTS = {
   GOALS: `${API_BASE_URL}/api/goals`,
   TASKS: `${API_BASE_URL}/api/tasks`,
   TRANSFORM_THOUGHT: `${API_BASE_URL}/api/ai/transform-thought-to-goal`,
+  TRANSFORM_THOUGHT_STREAMING: `${API_BASE_URL}/api/ai/transform-thought-streaming`,
 };
 
 // Helper function for common fetch options

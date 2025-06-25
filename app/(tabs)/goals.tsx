@@ -50,21 +50,24 @@ const TaskItem: React.FC<{
   getPriorityColor: (priority: string) => string;
 }> = ({ task, isUnassigned, onToggle, getPriorityColor }) => {
   const scaleAnim = useRef(new Animated.Value(1)).current;
+  const translateYAnim = useRef(new Animated.Value(0)).current;
+  const rotateXAnim = useRef(new Animated.Value(0)).current;
+  const glowOpacity = useRef(new Animated.Value(0)).current;
 
   const handleTaskPress = () => {
     // Haptic feedback for better UX
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     
-    // Animate scale down and up for visual feedback
+    // Subtle scale animation only
     Animated.sequence([
       Animated.timing(scaleAnim, {
-        toValue: 0.95,
+        toValue: 0.98,
         duration: 100,
         useNativeDriver: true,
       }),
       Animated.timing(scaleAnim, {
         toValue: 1,
-        duration: 100,
+        duration: 150,
         useNativeDriver: true,
       }),
     ]).start();
@@ -85,15 +88,16 @@ const TaskItem: React.FC<{
       <TouchableOpacity 
         style={styles.taskContent}
         onPress={handleTaskPress}
-        activeOpacity={0.8}
+        activeOpacity={0.95}
       >
         <View style={[styles.checkbox, task.completed && styles.checkboxCompleted]}>
           {task.completed ? (
-            <Ionicons name="checkmark-circle" size={22} color="#4CAF50" />
+            <Ionicons name="checkmark-circle" size={20} color="#4CAF50" />
           ) : (
-            <Ionicons name="ellipse-outline" size={22} color="rgba(255, 255, 255, 0.4)" />
+            <Ionicons name="ellipse-outline" size={20} color="rgba(255, 255, 255, 0.4)" />
           )}
         </View>
+        
         <View style={styles.taskDetails}>
           <Text style={[
             styles.taskTitle,
@@ -101,8 +105,14 @@ const TaskItem: React.FC<{
           ]}>
             {task.title}
           </Text>
+          
           <View style={styles.taskMeta}>
             <View style={[styles.priorityDot, { backgroundColor: getPriorityColor(task.priority) }]} />
+            
+            {task.estimatedTime && (
+              <Text style={styles.timeText}>{task.estimatedTime}m</Text>
+            )}
+            
             {(task.aiGenerated || isUnassigned) && (
               <Text style={styles.aiTag}>AI</Text>
             )}
@@ -119,6 +129,7 @@ export default function Goals() {
   const [standaloneTasks, setStandaloneTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const progressAnimations = useRef<{[key: string]: Animated.Value}>({}).current;
 
 
   // Load VT323 font for the title
@@ -193,6 +204,14 @@ export default function Goals() {
             );
             
             console.log(`Goal ${goal.id} has ${goalTasksList.length} tasks`);
+            
+            // Initialize progress animation for this goal if not exists
+            if (!progressAnimations[goal.id]) {
+              const completedTasks = goalTasksList.filter((task: Task) => task.completed).length;
+              const totalTasks = goalTasksList.length;
+              const initialProgress = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
+              progressAnimations[goal.id] = new Animated.Value(initialProgress);
+            }
             
             return {
               ...goal,
@@ -288,7 +307,17 @@ export default function Goals() {
               : task
           );
           
-          const newCompletedCount = updatedTasks.filter(task => task.completed).length;
+          const newCompletedCount = updatedTasks.filter((task: Task) => task.completed).length;
+          
+          // Animate progress bar smoothly
+          if (progressAnimations[goal.id]) {
+            const newProgress = updatedTasks.length > 0 ? (newCompletedCount / updatedTasks.length) * 100 : 0;
+            Animated.timing(progressAnimations[goal.id], {
+              toValue: newProgress,
+              duration: 500,
+              useNativeDriver: false,
+            }).start();
+          }
           
           return {
             ...goal,
@@ -377,6 +406,102 @@ export default function Goals() {
 
   const getProgressPercentage = (goal: Goal) => {
     return goal.totalTasks > 0 ? Math.round((goal.completedTasks / goal.totalTasks) * 100) : 0;
+  };
+
+  const getInterestingIcon = (goal: Goal) => {
+    // Return a more interesting icon based on goal content or default to a diverse set
+    const title = goal.title.toLowerCase();
+    const description = goal.description?.toLowerCase() || '';
+    const content = `${title} ${description}`;
+    
+    // Work & Career
+    if (content.includes('work') || content.includes('job') || content.includes('career') || content.includes('project') || content.includes('meeting')) {
+      return 'briefcase';
+    }
+    if (content.includes('code') || content.includes('programming') || content.includes('development') || content.includes('app')) {
+      return 'code-slash';
+    }
+    if (content.includes('presentation') || content.includes('pitch') || content.includes('speak')) {
+      return 'megaphone';
+    }
+    
+    // Health & Fitness
+    if (content.includes('health') || content.includes('fitness') || content.includes('exercise') || content.includes('workout') || content.includes('gym')) {
+      return 'heart';
+    }
+    if (content.includes('run') || content.includes('walk') || content.includes('jog')) {
+      return 'walk';
+    }
+    if (content.includes('diet') || content.includes('nutrition') || content.includes('eat') || content.includes('food')) {
+      return 'nutrition';
+    }
+    
+    // Learning & Education
+    if (content.includes('learn') || content.includes('study') || content.includes('course') || content.includes('book') || content.includes('read')) {
+      return 'book';
+    }
+    if (content.includes('language') || content.includes('skill') || content.includes('practice')) {
+      return 'library';
+    }
+    
+    // Creative & Arts
+    if (content.includes('design') || content.includes('creative') || content.includes('art') || content.includes('draw')) {
+      return 'color-palette';
+    }
+    if (content.includes('music') || content.includes('song') || content.includes('instrument')) {
+      return 'musical-notes';
+    }
+    if (content.includes('write') || content.includes('blog') || content.includes('article')) {
+      return 'create';
+    }
+    
+    // Finance & Money
+    if (content.includes('money') || content.includes('budget') || content.includes('save') || content.includes('invest') || content.includes('financial')) {
+      return 'wallet';
+    }
+    
+    // Travel & Adventure
+    if (content.includes('travel') || content.includes('trip') || content.includes('vacation') || content.includes('visit')) {
+      return 'airplane';
+    }
+    
+    // Home & Personal
+    if (content.includes('home') || content.includes('house') || content.includes('clean') || content.includes('organize')) {
+      return 'home';
+    }
+    if (content.includes('family') || content.includes('relationship') || content.includes('friend')) {
+      return 'people';
+    }
+    
+    // Hobbies & Fun
+    if (content.includes('game') || content.includes('play') || content.includes('fun')) {
+      return 'game-controller';
+    }
+    if (content.includes('garden') || content.includes('plant') || content.includes('grow')) {
+      return 'leaf';
+    }
+    
+    // Goals with specific actions
+    if (content.includes('call') || content.includes('phone') || content.includes('contact')) {
+      return 'call';
+    }
+    if (content.includes('email') || content.includes('message') || content.includes('communicate')) {
+      return 'mail';
+    }
+    if (content.includes('shopping') || content.includes('buy') || content.includes('purchase')) {
+      return 'basket';
+    }
+    
+    // Fallback to diverse icons based on goal ID hash for consistency
+    const goalIdHash = goal.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    const iconOptions = [
+      'rocket', 'star', 'diamond', 'flash', 'trophy', 'medal', 'flag', 
+      'compass', 'map', 'telescope', 'bulb', 'magnet', 'prism', 'eye',
+      'camera', 'film', 'headset', 'tv', 'radio', 'newspaper', 'journal',
+      'calculator', 'timer', 'stopwatch', 'calendar', 'clipboard', 'folder'
+    ];
+    
+    return iconOptions[goalIdHash % iconOptions.length];
   };
 
   const handleAICoachPress = () => {
@@ -475,9 +600,9 @@ export default function Goals() {
                                 goal.id === 'unassigned' && styles.unassignedGoalIcon
                               ]}>
                                 <Ionicons 
-                                  name={goal.icon as any} 
+                                  name={getInterestingIcon(goal) as any} 
                                   size={24} 
-                                  color={goal.id === 'unassigned' ? '#FF6B35' : '#FF6B35'} 
+                                  color="#FF6B35" 
                                 />
                               </View>
                               <View style={styles.goalDetails}>
@@ -499,10 +624,18 @@ export default function Goals() {
                           {/* Progress Bar */}
                           <View style={styles.progressContainer}>
                             <View style={styles.progressBar}>
-                              <View 
+                              <Animated.View 
                                 style={[
                                   styles.progressFill, 
-                                  { width: `${getProgressPercentage(goal)}%` }
+                                  { 
+                                    width: progressAnimations[goal.id] 
+                                      ? progressAnimations[goal.id].interpolate({
+                                          inputRange: [0, 100],
+                                          outputRange: ['0%', '100%'],
+                                          extrapolate: 'clamp',
+                                        })
+                                      : `${getProgressPercentage(goal)}%`
+                                  }
                                 ]} 
                               />
                             </View>
@@ -557,6 +690,7 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
     paddingTop: 30,
+    marginBottom: 30, // Match the horizontal padding of sectionContainer
   },
   topNav: {
     flexDirection: 'row',
@@ -706,8 +840,8 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   tasksContainer: {
-    marginTop: 8,
-    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    marginTop: 12,
+    backgroundColor: 'rgba(0, 0, 0, 0.1)',
     borderRadius: 12,
     overflow: 'hidden',
   },
@@ -727,14 +861,14 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter',
   },
   taskItem: {
-    paddingVertical: 16,
-    paddingHorizontal: 20,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255, 255, 255, 0.05)',
   },
   taskContent: {
     flexDirection: 'row',
     alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
   },
   checkbox: {
     marginRight: 12,
@@ -766,37 +900,37 @@ const styles = StyleSheet.create({
   taskMeta: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 6,
     gap: 8,
   },
+  priorityDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  timeText: {
+    fontSize: 11,
+    color: 'rgba(255, 255, 255, 0.5)',
+    fontFamily: 'Inter',
+  },
+  aiTag: {
+    fontSize: 9,
+    fontWeight: '600',
+    color: '#FF6B35',
+    fontFamily: 'Inter',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  // Legacy styles to maintain compatibility
   priorityTag: {
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 12,
   },
-  priorityDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  priorityText: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
   timeEstimate: {
     fontSize: 12,
     color: 'rgba(255, 255, 255, 0.6)',
     fontFamily: 'Inter',
-  },
-  aiTag: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#FF6B35',
-    backgroundColor: 'rgba(255, 107, 53, 0.2)',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 8,
   },
   loadingContainer: {
     flex: 1,

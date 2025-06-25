@@ -1,4 +1,4 @@
-import { ENDPOINTS } from '@/utils/api';
+import { ENDPOINTS, API_BASE_URL } from '@/utils/api';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -17,7 +17,7 @@ import {
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import KeyboardAvoidingWrapper from './KeyboardAvoidingWrapper';
 // import { useVoiceRecording } from '@/hooks/useVoiceRecording';
-import { API } from '@/config/api';
+import { TaskPreviewModal } from '@/components/TaskPreviewModal';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -308,53 +308,122 @@ const GlassChat: React.FC<{
 export const AppLayout: React.FC<AppLayoutProps> = ({ children, showChatbox = true }) => {
   const [chatMessage, setChatMessage] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showTaskPreview, setShowTaskPreview] = useState(false);
+  const [currentThought, setCurrentThought] = useState('');
+  const [currentGoalId, setCurrentGoalId] = useState<string | null>(null);
+  const [keptTasks, setKeptTasks] = useState<any[]>([]);
   const router = useRouter();
 
   const handleSendMessage = async () => {
     if (chatMessage.trim() && !loading) {
-      setLoading(true);
-      try {
-        const response = await fetch(ENDPOINTS.TRANSFORM_THOUGHT, {
+      // Reset goal ID for new thought
+      setCurrentGoalId(null);
+      setCurrentThought(chatMessage);
+      setShowTaskPreview(true);
+      setChatMessage('');
+    }
+  };
+
+  const handleTaskDecision = async (taskId: string, keep: boolean, taskData?: any, goalData?: any) => {
+    console.log(`Task ${taskId} ${keep ? 'kept' : 'rejected'}`);
+    
+    try {
+      if (keep && taskData && goalData) {
+        // Create goal first if it doesn't exist
+        if (!currentGoalId) {
+          console.log('Creating AI-generated goal:', goalData.title);
+          const goalResponse = await fetch(ENDPOINTS.GOALS, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              title: goalData.title,
+              description: goalData.description,
+              priority: goalData.priority || 'MEDIUM',
+              category: goalData.category || 'personal'
+            }),
+          });
+          
+          if (!goalResponse.ok) {
+            throw new Error('Failed to create goal');
+          }
+          
+          const goal = await goalResponse.json();
+          setCurrentGoalId(goal.id);
+          console.log('AI goal created:', goal.id);
+        }
+
+        // Now save the task with proper data
+        console.log('Saving task to database:', taskData);
+        const response = await fetch(ENDPOINTS.TASKS, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            thought: chatMessage
+            title: taskData.title,
+            description: taskData.description,
+            priority: taskData.priority || 'MEDIUM',
+            estimatedTime: taskData.estimatedTime || 30,
+            goalId: currentGoalId,
+            aiGenerated: true
           }),
         });
-
-        const data = await response.json();
-
-        if (response.ok) {
-          console.log('Goal and tasks created successfully:', data);
-          setChatMessage('');
-
-          // Show success message
-          Alert.alert(
-            'Success! 🎯',
-            `Created goal "${data.createdGoal?.title}" with ${data.createdTasks?.length || 0} tasks!`,
-            [
-              {
-                text: 'View in Reflect',
-                onPress: () => router.push('/(tabs)/goals'),
-                style: 'default'
-              },
-              {
-                text: 'Stay Here',
-                style: 'cancel'
-              }
-            ]
-          );
+        
+        if (!response.ok) {
+          const errorData = await response.text();
+          console.error('Failed to save task:', taskId, errorData);
+          throw new Error(`Failed to save task: ${response.status}`);
         } else {
-          console.error('Error creating goal and tasks:', data.error);
-          Alert.alert('Error', data.error || 'Failed to process your thought. Please try again.');
+          const savedTask = await response.json();
+          console.log('Task saved successfully:', savedTask.id);
         }
-      } catch (error) {
-        console.error('Failed to send message:', error);
-        Alert.alert('Error', 'Network error. Please check your connection and try again.');
+      } else {
+        // Delete/skip task - remove from any temporary storage
+        console.log('Task skipped:', taskId);
+        // No API call needed for skipping since task was never saved
       }
-      setLoading(false);
+    } catch (error) {
+      console.error('Error handling task decision:', error);
+      Alert.alert(
+        'Error',
+        'Failed to save task. Please try again.',
+        [{ text: 'OK' }]
+      );
+    }
+  };
+
+  const handleAllTasksProcessed = async (finalKeptTasks: any[], goal?: any) => {
+    setKeptTasks(finalKeptTasks);
+    
+    // Since tasks are already saved/skipped individually, just show completion message
+    if (finalKeptTasks.length === 0) {
+      Alert.alert(
+        'No Tasks Selected',
+        'You didn\'t keep any tasks. Would you like to try again?',
+        [
+          { text: 'Try Again', onPress: () => setShowTaskPreview(true) },
+          { text: 'Cancel', style: 'cancel' }
+        ]
+      );
+    } else {
+      const goalTitle = goal ? goal.title : 'your goal';
+      Alert.alert(
+        'Goal & Tasks Created! 🎯',
+        `Your goal "${goalTitle}" with ${finalKeptTasks.length} tasks has been added to your list!`,
+        [
+          {
+            text: 'View in Goals',
+            onPress: () => router.push('/(tabs)/goals'),
+            style: 'default'
+          },
+          {
+            text: 'Stay Here',
+            style: 'cancel'
+          }
+        ]
+      );
     }
   };
 
@@ -386,6 +455,15 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, showChatbox = tr
             />
           )}
         </KeyboardAvoidingWrapper>
+        
+        {/* Task Preview Modal */}
+        <TaskPreviewModal
+          visible={showTaskPreview}
+          onClose={() => setShowTaskPreview(false)}
+          onTaskDecision={handleTaskDecision}
+          onAllTasksProcessed={handleAllTasksProcessed}
+          thought={currentThought}
+        />
       </SafeAreaView>
     </SafeAreaProvider>
   );

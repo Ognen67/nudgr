@@ -314,9 +314,7 @@ export const TaskPreviewModal: React.FC<TaskPreviewModalProps> = ({
   const handleTaskSwipe = async (keep: boolean) => {
     const currentTask = tasks[currentTaskIndex];
     if (currentTask && goal) {
-      // Pass both task and goal data to the decision handler
-      await onTaskDecision(currentTask.id, keep, currentTask, goal);
-      
+      // For demo purposes - no database operations, just smooth UI
       if (keep) {
         setKeptTasks(prev => [...prev, currentTask]);
       }
@@ -461,14 +459,14 @@ const styles = StyleSheet.create({
   modalContent: {
     width: '100%',
     maxWidth: 380,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: '#1E1E1E',
     borderRadius: 28,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 107, 53, 0.4)',
     padding: 24,
-    shadowColor: '#000',
+    shadowColor: '#FF6B35',
     shadowOffset: { width: 0, height: 20 },
-    shadowOpacity: 0.4,
+    shadowOpacity: 0.3,
     shadowRadius: 25,
     elevation: 20,
   },
@@ -625,10 +623,10 @@ const styles = StyleSheet.create({
   taskCard: {
     width: screenWidth - 100,
     position: 'absolute',
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: '#2A2A2A',
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderColor: 'rgba(255, 107, 53, 0.3)',
     padding: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },

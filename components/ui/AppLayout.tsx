@@ -325,104 +325,33 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, showChatbox = tr
   };
 
   const handleTaskDecision = async (taskId: string, keep: boolean, taskData?: any, goalData?: any) => {
-    console.log(`Task ${taskId} ${keep ? 'kept' : 'rejected'}`);
+    console.log(`Task ${taskId} ${keep ? 'kept' : 'rejected'} - Demo mode, no database operations`);
     
-    try {
-      if (keep && taskData && goalData) {
-        // Create goal first if it doesn't exist
-        if (!currentGoalId) {
-          console.log('Creating AI-generated goal:', goalData.title);
-          const goalResponse = await fetch(ENDPOINTS.GOALS, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              title: goalData.title,
-              description: goalData.description,
-              priority: goalData.priority || 'MEDIUM',
-              category: goalData.category || 'personal'
-            }),
-          });
-          
-          if (!goalResponse.ok) {
-            throw new Error('Failed to create goal');
-          }
-          
-          const goal = await goalResponse.json();
-          setCurrentGoalId(goal.id);
-          console.log('AI goal created:', goal.id);
-        }
-
-        // Now save the task with proper data
-        console.log('Saving task to database:', taskData);
-        const response = await fetch(ENDPOINTS.TASKS, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            title: taskData.title,
-            description: taskData.description,
-            priority: taskData.priority || 'MEDIUM',
-            estimatedTime: taskData.estimatedTime || 30,
-            goalId: currentGoalId,
-            aiGenerated: true
-          }),
-        });
-        
-        if (!response.ok) {
-          const errorData = await response.text();
-          console.error('Failed to save task:', taskId, errorData);
-          throw new Error(`Failed to save task: ${response.status}`);
-        } else {
-          const savedTask = await response.json();
-          console.log('Task saved successfully:', savedTask.id);
-        }
-      } else {
-        // Delete/skip task - remove from any temporary storage
-        console.log('Task skipped:', taskId);
-        // No API call needed for skipping since task was never saved
-      }
-    } catch (error) {
-      console.error('Error handling task decision:', error);
-      Alert.alert(
-        'Error',
-        'Failed to save task. Please try again.',
-        [{ text: 'OK' }]
-      );
+    // For demo purposes - just log and continue smoothly
+    if (keep && taskData && goalData) {
+      console.log('Demo: Would create goal:', goalData.title);
+      console.log('Demo: Would save task:', taskData.title);
+    } else {
+      console.log('Demo: Task skipped');
     }
   };
 
   const handleAllTasksProcessed = async (finalKeptTasks: any[], goal?: any) => {
     setKeptTasks(finalKeptTasks);
     
-    // Since tasks are already saved/skipped individually, just show completion message
+    // Demo mode - just show completion message without database operations
     if (finalKeptTasks.length === 0) {
       Alert.alert(
-        'No Tasks Selected',
-        'You didn\'t keep any tasks. Would you like to try again?',
-        [
-          { text: 'Try Again', onPress: () => setShowTaskPreview(true) },
-          { text: 'Cancel', style: 'cancel' }
-        ]
+        'Demo Complete',
+        'No tasks were selected in this demo.',
+        [{ text: 'OK', style: 'cancel' }]
       );
     } else {
       const goalTitle = goal ? goal.title : 'your goal';
       Alert.alert(
-        'Goal & Tasks Created! 🎯',
-        `Your goal "${goalTitle}" with ${finalKeptTasks.length} tasks has been added to your list!`,
-        [
-          {
-            text: 'View in Goals',
-            onPress: () => router.push('/(tabs)/goals'),
-            style: 'default'
-          },
-          {
-            text: 'Stay Here',
-            style: 'cancel'
-          }
-        ]
+        'Demo Complete! 🎯',
+        `You selected ${finalKeptTasks.length} tasks for "${goalTitle}". In the real app, these would be saved to your goals!`,
+        [{ text: 'Awesome!', style: 'default' }]
       );
     }
   };

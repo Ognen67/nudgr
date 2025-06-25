@@ -43,6 +43,22 @@ const GlassChat: React.FC<{
     const glowOpacity = useRef(new Animated.Value(0)).current;
     const pulseScale = useRef(new Animated.Value(1)).current;
     const pulseGlow = useRef(new Animated.Value(0)).current;
+    
+    // Voice recording hook - commented out for Expo Go compatibility
+    // const {
+    //   isRecording,
+    //   isTranscribing,
+    //   startRecording,
+    //   stopRecording,
+    //   recognizedText
+    // } = useVoiceRecording();
+    
+    // Temporary fallback values for Expo Go
+    const isRecording = false;
+    const isTranscribing = false;
+    const startRecording = async () => {};
+    const stopRecording = async () => null;
+    const recognizedText = '';
 
     const handleFocus = () => {
       setIsFocused(true);
@@ -106,6 +122,29 @@ const GlassChat: React.FC<{
       ]).start();
     };
 
+    const handleVoicePress = async () => {
+      try {
+        if (isRecording) {
+          // Stop recording
+          const transcribedText = await stopRecording();
+          if (transcribedText) {
+            const newMessage = chatMessage ? `${chatMessage} ${transcribedText}` : transcribedText;
+            setChatMessage(newMessage);
+          }
+        } else {
+          // Start recording
+          await startRecording();
+        }
+      } catch (error) {
+        console.error('Voice recording error:', error);
+        Alert.alert(
+          'Voice Recording Error',
+          'Failed to use voice recording. Please check your microphone permissions.',
+          [{ text: 'OK' }]
+        );
+      }
+    };
+
     return (
       <Animated.View
         style={[
@@ -117,7 +156,41 @@ const GlassChat: React.FC<{
           }
         ]}
       >
-        {/* Glowy border */}
+        {/* Outer Glow */}
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            { ...StyleSheet.absoluteFillObject },
+            {
+              opacity: glowOpacity,
+              borderRadius,
+              shadowColor: '#FF6B35',
+              shadowOpacity: 0.4,
+              shadowRadius: 35,
+              shadowOffset: { width: 0, height: 0 },
+              zIndex: 1,
+            },
+          ]}
+        />
+        
+        {/* Middle Glow */}
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            { ...StyleSheet.absoluteFillObject },
+            {
+              opacity: glowOpacity,
+              borderRadius,
+              shadowColor: '#FF6B35',
+              shadowOpacity: 0.8,
+              shadowRadius: 20,
+              shadowOffset: { width: 0, height: 0 },
+              zIndex: 2,
+            },
+          ]}
+        />
+        
+        {/* Orange Border with Inner Glow */}
         <Animated.View
           pointerEvents="none"
           style={[
@@ -126,12 +199,12 @@ const GlassChat: React.FC<{
               opacity: glowOpacity,
               borderRadius,
               borderWidth: 2,
-              borderColor: 'rgba(255,107,53,0.7)',
+              borderColor: '#FF6B35',
               shadowColor: '#FF6B35',
-              shadowOpacity: 0.7,
-              shadowRadius: 18,
+              shadowOpacity: 1.0,
+              shadowRadius: 8,
               shadowOffset: { width: 0, height: 0 },
-              zIndex: 2,
+              zIndex: 3,
             },
           ]}
         />
@@ -157,8 +230,8 @@ const GlassChat: React.FC<{
                       styles.chatInput,
                       isFocused && styles.chatInputFocused,
                     ]}
-                    placeholder="your thoughts go here..."
-                    placeholderTextColor="rgba(255, 255, 255, 0.4)"
+                    placeholder={isRecording ? "Listening..." : "your thoughts go here..."}
+                    placeholderTextColor={isRecording ? "#FF6B35" : "rgba(255, 255, 255, 0.4)"}
                     value={chatMessage}
                     onChangeText={setChatMessage}
                     onSubmitEditing={onSendMessage}
@@ -167,24 +240,62 @@ const GlassChat: React.FC<{
                     returnKeyType="send"
                     multiline
                     textAlignVertical="center"
+                    editable={!isRecording}
                   />
-                  <TouchableOpacity
-                    style={[styles.sendButton, loading && styles.sendButtonDisabled]}
-                    onPress={loading ? undefined : onSendMessage}
-                    activeOpacity={loading ? 1 : 0.7}
-                    disabled={loading}
-                  >
-                    <LinearGradient
-                      colors={loading ? ['#666666', '#888888'] : ['#FF6B35', '#FF8A65']}
-                      style={styles.sendButtonGradient}
+                  
+                  {/* Voice Recording Button - Only show when text field is empty */}
+                  {chatMessage.trim().length === 0 && (
+                    <TouchableOpacity
+                      style={[
+                        styles.voiceButton, 
+                        isRecording && styles.voiceButtonRecording,
+                        isTranscribing && styles.voiceButtonTranscribing
+                      ]}
+                      onPress={handleVoicePress}
+                      activeOpacity={0.7}
+                      disabled={loading}
                     >
-                      {loading ? (
-                        <Ionicons name="ellipsis-horizontal" size={18} color="#FFFFFF" />
-                      ) : (
-                        <Ionicons name="send" size={18} color="#FFFFFF" />
-                      )}
-                    </LinearGradient>
-                  </TouchableOpacity>
+                      <LinearGradient
+                        colors={
+                          isRecording 
+                            ? ['#FF4444', '#FF6666'] 
+                            : isTranscribing 
+                              ? ['#FFA500', '#FFB347']
+                              : ['rgba(255, 107, 53, 0.2)', 'rgba(255, 107, 53, 0.3)']
+                        }
+                        style={styles.voiceButtonGradient}
+                      >
+                        {isTranscribing ? (
+                          <Ionicons name="ellipsis-horizontal" size={18} color="#FFFFFF" />
+                        ) : isRecording ? (
+                          <Ionicons name="stop" size={18} color="#FFFFFF" />
+                        ) : (
+                          <Ionicons name="mic" size={18} color="#FF6B35" />
+                        )}
+                      </LinearGradient>
+                    </TouchableOpacity>
+                  )}
+                  
+                  {/* Send Button - Only show when there's text */}
+                  {chatMessage.trim().length > 0 && (
+                    <TouchableOpacity
+                      style={[styles.sendButton, loading && styles.sendButtonDisabled]}
+                      onPress={loading ? undefined : onSendMessage}
+                      activeOpacity={loading ? 1 : 0.7}
+                      disabled={loading}
+                    >
+                      <LinearGradient
+                        colors={loading ? ['#666666', '#888888'] : ['#FF6B35', '#FF8A65']}
+                        style={styles.sendButtonGradient}
+                      >
+                        {loading ? (
+                          <Ionicons name="ellipsis-horizontal" size={18} color="#FFFFFF" />
+                        ) : (
+                          <Ionicons name="send" size={18} color="#FFFFFF" />
+                        )}
+                      </LinearGradient>
+                    </TouchableOpacity>
+                  )}
                 </View>
               </View>
             </View>
@@ -357,7 +468,7 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
   },
   sendButton: {
-    marginLeft: 8,
+    marginLeft: 0,
   },
   sendButtonDisabled: {
     opacity: 0.6,
@@ -365,6 +476,27 @@ const styles = StyleSheet.create({
   sendButtonGradient: {
     width: 36,
     height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#FF6B35',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  voiceButton: {
+    marginLeft: 0,
+  },
+  voiceButtonRecording: {
+    opacity: 1,
+  },
+  voiceButtonTranscribing: {
+    opacity: 0.8,
+  },
+  voiceButtonGradient: {
+    width: 30,
+    height: 30,
     borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',

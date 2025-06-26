@@ -251,7 +251,7 @@ const TimelineNode: React.FC<{
         >
           <View style={styles.timelineItemWrapper}>
             {/* Enhanced Task card with gradient overlay */}
-            <GlassCard style={[styles.goalCard, isTablet && styles.goalCardTablet]}>
+            <GlassCard style={StyleSheet.flatten([styles.goalCard, isTablet && styles.goalCardTablet])}>
               <LinearGradient
                 colors={[
                   'rgba(255, 107, 53, 0.1)',
@@ -292,10 +292,7 @@ const TimelineNode: React.FC<{
                       </View>
                     </View>
                     
-                    {/* Priority indicator */}
-                    <View style={[styles.priorityBadge, { backgroundColor: getPriorityGlow(item.priority) }]}>
-                      <Text style={styles.priorityText}>{item.priority}</Text>
-                    </View>
+
                   </View>
                   
                   <View style={styles.cardMeta}>
@@ -342,20 +339,6 @@ const TimelineNode: React.FC<{
           </View>
         </Animated.View>
       </TouchableOpacity>
-      
-      {/* Connection line to timeline */}
-      <Animated.View 
-        style={[
-          styles.connectionLine,
-          isLeft ? styles.connectionLineLeft : styles.connectionLineRight,
-          {
-            backgroundColor: glowAnim.interpolate({
-              inputRange: [0, 1],
-              outputRange: ['rgba(255, 107, 53, 0.4)', getPriorityGlow(item.priority)]
-            })
-          }
-        ]} 
-      />
     </Animated.View>
   );
 
@@ -947,20 +930,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
     lineHeight: 16,
   },
-  priorityBadge: {
-    position: 'absolute',
-    top: isTablet ? 20 : 16,
-    right: isTablet ? 20 : 16,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  priorityText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    fontFamily: 'Inter',
-  },
+
   cardMeta: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1016,20 +986,7 @@ const styles = StyleSheet.create({
     top: '50%',
     left: 8,
   },
-  connectionLine: {
-    position: 'absolute',
-    top: 24,
-    width: isTablet ? 32 : 24,
-    height: 3,
-    borderRadius: 1.5,
-    zIndex: 1,
-  },
-  connectionLineLeft: {
-    right: -isTablet ? 56 : 40,
-  },
-  connectionLineRight: {
-    left: -isTablet ? 56 : 40,
-  },
+
   
   // Loading and Empty States
   loadingContainer: {

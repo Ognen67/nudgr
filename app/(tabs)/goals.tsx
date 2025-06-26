@@ -157,10 +157,6 @@ export default function Goals() {
       setLoading(true);
       
       // Fetch all tasks (including standalone AI-generated ones)
-      const tasksResponse = await fetch(API.tasks);
-      const tasksData = await tasksResponse.json();
-      
-      // Fetch all tasks (including standalone AI-generated ones)
       try {
         const tasksResponse = await fetch(ENDPOINTS.TASKS);
         console.log("Tasks response status:", tasksResponse.status);
@@ -182,7 +178,7 @@ export default function Goals() {
         
         // If you have goals, fetch them too
         try {
-          const goalsResponse = await fetch(API.goals);
+          const goalsResponse = await fetch(ENDPOINTS.GOALS);
           
           if (!goalsResponse.ok) {
             console.error(`Goals API error: ${goalsResponse.status} - ${goalsResponse.statusText}`);
@@ -331,7 +327,7 @@ export default function Goals() {
 
     // Make API call in the background
     try {
-      const response = await fetch(`${API.tasks}/${taskId}`, {
+      const response = await fetch(`${ENDPOINTS.TASKS}/${taskId}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',

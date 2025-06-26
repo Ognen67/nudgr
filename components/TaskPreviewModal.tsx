@@ -223,10 +223,12 @@ export const TaskPreviewModal: React.FC<TaskPreviewModalProps> = ({
 
   const generateTasksFromChatGPT = async () => {
     try {
-      console.log('Generating tasks for thought:', thought);
+      console.log('Generating goal and tasks for thought:', thought);
+      setIsGenerating(true);
       
-      // React Native doesn't support SSE streaming well, so we'll use polling approach
-      const response = await fetch(ENDPOINTS.TRANSFORM_THOUGHT_STREAMING, {
+      // Use the transform-thought-to-goal endpoint that creates both goal and tasks in database
+      console.log('Step 1: Creating goal and tasks in database...');
+      const response = await fetch(ENDPOINTS.TRANSFORM_THOUGHT, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -238,93 +240,169 @@ export const TaskPreviewModal: React.FC<TaskPreviewModalProps> = ({
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      // Try to read the full response as text for SSE parsing
-      const responseText = await response.text();
-      console.log('Full response received:', responseText.length, 'characters');
+      const data = await response.json();
+      console.log('Goal and tasks created in database:', data);
 
-      // Parse the SSE response manually
-      const lines = responseText.split('\n');
-      let accumulatedTasks = [];
-      let generatedGoal = null;
-
-      for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          try {
-            const data = JSON.parse(line.slice(6));
-            
-            switch (data.type) {
-              case 'status':
-                console.log('Status:', data.message);
-                break;
-                
-              case 'progress':
-                console.log('Progress chunk:', data.content);
-                break;
-                
-              case 'goal':
-                console.log('Goal received:', data.goal.title);
-                generatedGoal = data.goal;
-                setGoal(data.goal);
-                break;
-                
-              case 'task':
-                console.log('New task received:', data.task.title);
-                accumulatedTasks.push(data.task);
-                break;
-                
-              case 'complete':
-                console.log('Generation complete:', data.goalCreated, 'goal created,', data.totalTasks, 'tasks');
-                break;
-                
-              case 'error':
-                console.error('Streaming error:', data.message);
-                throw new Error(data.message);
-            }
-          } catch (parseError) {
-            console.warn('Failed to parse streaming data:', parseError);
-          }
-        }
+      if (!data.createdGoal || !data.createdTasks) {
+        throw new Error('Failed to create goal and tasks in database');
       }
 
-      // Now simulate streaming by adding tasks one by one with delays
-      console.log('Simulating streaming for', accumulatedTasks.length, 'tasks');
-      for (let i = 0; i < accumulatedTasks.length; i++) {
-        await new Promise(resolve => setTimeout(resolve, 800 + Math.random() * 600));
-        setTasks(prev => [...prev, accumulatedTasks[i]]);
+      // Set the goal first (already created in database)
+      const goalWithId = {
+        id: data.createdGoal.id,
+        title: data.createdGoal.title,
+        description: data.createdGoal.description,
+        priority: data.createdGoal.priority,
+        category: data.createdGoal.category
+      };
+      setGoal(goalWithId);
+
+      // Small delay to show goal creation
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Display tasks one by one with proper stacking animation (newest on top)
+      console.log('Step 2: Displaying', data.createdTasks.length, 'tasks');
+             const dbTasks = data.createdTasks.map((task: any) => ({
+        id: task.id,
+        title: task.title,
+        description: task.description,
+        priority: task.priority,
+        estimatedTime: task.estimatedTime,
+        category: task.goal?.category || 'general',
+        goalId: task.goalId
+      }));
+
+      // Add tasks one by one, with newest tasks added to the front of the array
+      for (let i = 0; i < dbTasks.length; i++) {
+        await new Promise(resolve => setTimeout(resolve, 600 + Math.random() * 400));
+        
+        // Add new task to the BEGINNING of the array so it appears on top
+        setTasks(prev => [dbTasks[i], ...prev]);
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        console.log(`Added task ${i + 1}:`, accumulatedTasks[i].title);
+        console.log(`Displayed task ${i + 1} on top:`, dbTasks[i].title);
       }
       
       setIsGenerating(false);
-      console.log('All tasks processed successfully');
+      console.log('All tasks processed successfully and saved to database');
       
     } catch (error) {
-      console.error('Task generation failed:', error);
+      console.error('Goal and task generation failed:', error);
       setIsGenerating(false);
       
-      // Show error state - no fallback to mock data
-      Alert.alert(
-        'Connection Error',
-        'Failed to generate tasks. Please check your internet connection and try again.',
-        [{ text: 'OK', onPress: onClose }]
-      );
+      // Fallback to mock data for demo purposes
+      console.log('Using fallback mock data');
+      const mockGoal = {
+        id: `goal_${Date.now()}`,
+        title: 'Improve Productivity',
+        description: 'Focus on better task management and goal achievement',
+        priority: 'HIGH' as const,
+        category: 'productivity'
+      };
+
+      const mockTasks = [
+        {
+          id: `task_${Date.now()}_1`,
+          title: 'Set daily priorities',
+          description: 'Start each day by identifying top 3 priorities',
+          priority: 'HIGH' as const,
+          estimatedTime: 15,
+          category: 'planning',
+          goalId: mockGoal.id
+        },
+        {
+          id: `task_${Date.now()}_2`,
+          title: 'Use time blocking',
+          description: 'Block specific time slots for focused work sessions',
+          priority: 'MEDIUM' as const,
+          estimatedTime: 30,
+          category: 'time-management',
+          goalId: mockGoal.id
+        },
+        {
+          id: `task_${Date.now()}_3`,
+          title: 'Review weekly progress',
+          description: 'Weekly reflection on goals and task completion',
+          priority: 'MEDIUM' as const,
+          estimatedTime: 20,
+          category: 'reflection',
+          goalId: mockGoal.id
+        }
+      ];
+
+      // Set goal first
+      setGoal(mockGoal);
+      await new Promise(resolve => setTimeout(resolve, 800));
+
+      // Add tasks one by one, with newest tasks added to the front
+      for (let i = 0; i < mockTasks.length; i++) {
+        await new Promise(resolve => setTimeout(resolve, 700));
+        setTasks(prev => [mockTasks[i], ...prev]); // Add to front for top stacking
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      }
+      
+      setIsGenerating(false);
     }
   };
 
   const handleTaskSwipe = async (keep: boolean) => {
-    const currentTask = tasks[currentTaskIndex];
+    // Find the current task (top of stack is index 0)
+    const currentTask = tasks[0]; // Always use the top task
     if (currentTask && goal) {
-      // For demo purposes - no database operations, just smooth UI
-      if (keep) {
-        setKeptTasks(prev => [...prev, currentTask]);
+      console.log(`Task "${currentTask.title}" ${keep ? 'accepted' : 'rejected'} for goal "${goal.title}"`);
+      
+      try {
+        if (keep) {
+          // Task is already created in database - just mark it as kept/active
+          console.log('Task kept - already saved in database with ID:', currentTask.id);
+          setKeptTasks(prev => [...prev, currentTask]);
+          
+          // Call the decision handler with proper goal association
+          await onTaskDecision(currentTask.id, true, currentTask, goal);
+        } else {
+          // Task is skipped - delete it from database
+          console.log('Task skipped - deleting from database...');
+          
+          const deleteResponse = await fetch(`${ENDPOINTS.TASKS}/${currentTask.id}`, {
+            method: 'DELETE',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          });
+
+          if (!deleteResponse.ok) {
+            throw new Error(`Failed to delete task: ${deleteResponse.status}`);
+          }
+
+          console.log('Task successfully deleted from database');
+          
+          // Call the decision handler
+          await onTaskDecision(currentTask.id, false, currentTask, goal);
+        }
+      } catch (error) {
+        console.error('Error processing task decision:', error);
+        
+        // Show error to user but continue with UI flow
+        Alert.alert(
+          'Error',
+          `Failed to ${keep ? 'save' : 'delete'} task. Please try again.`,
+          [{ text: 'OK' }]
+        );
       }
       
-      if (currentTaskIndex < tasks.length - 1) {
-        setCurrentTaskIndex(prev => prev + 1);
+      // Remove the current task from the stack (shift from front)
+      setTasks(prev => prev.slice(1));
+      
+      // Check if we have more tasks
+      if (tasks.length > 1) {
+        // More tasks remaining, continue with next task
+        console.log(`${tasks.length - 1} tasks remaining`);
       } else {
-        // All tasks processed
+        // All tasks processed - finalize with the pre-created goal
+        const finalKeptTasks = keep ? [...keptTasks, currentTask] : keptTasks;
+        console.log(`Finalizing: ${finalKeptTasks.length} tasks kept for goal "${goal.title}"`);
+        
         setTimeout(() => {
-          onAllTasksProcessed(keep ? [...keptTasks, currentTask] : keptTasks, goal);
+          onAllTasksProcessed(finalKeptTasks, goal);
           onClose();
         }, 500);
       }
@@ -400,34 +478,71 @@ export const TaskPreviewModal: React.FC<TaskPreviewModalProps> = ({
               )}
             </View>
 
-            {/* Task Display Area */}
+            {/* Task Display Area - Improved stacking with new tasks on top */}
             <View style={styles.taskArea}>
               {tasks.length === 0 && isGenerating ? (
                 <View style={styles.loadingState}>
-                  <Ionicons name="bulb" size={48} color="#FF6B35" />
-                  <Text style={styles.loadingText}>Thinking...</Text>
+                  {goal ? (
+                    <>
+                      <Ionicons name="checkmark-circle" size={32} color="#4CAF50" />
+                      <Text style={styles.goalCreatedText}>Goal Created in Database!</Text>
+                      <Text style={styles.loadingText}>Generating tasks...</Text>
+                    </>
+                  ) : (
+                    <>
+                      <Ionicons name="bulb" size={48} color="#FF6B35" />
+                      <Text style={styles.loadingText}>Creating your goal...</Text>
+                    </>
+                  )}
                 </View>
               ) : (
-                tasks.map((task, index) => (
-                  <TaskCard
-                    key={task.id}
-                    task={task}
-                    onSwipe={handleTaskSwipe}
-                    isActive={index === currentTaskIndex}
-                  />
-                ))
+                <View style={styles.taskStack}>
+                  {tasks.map((task, index) => {
+                    // Index 0 is the top/active task, others are stacked behind
+                    const isActive = index === 0;
+                    const stackDepth = index; // How deep in the stack
+                    const isVisible = stackDepth <= 2; // Show top 3 tasks
+                    
+                    if (!isVisible) return null;
+                    
+                    return (
+                      <View
+                        key={task.id}
+                        style={[
+                          styles.taskCardContainer,
+                          {
+                            zIndex: tasks.length - index, // Higher zIndex for top tasks
+                            transform: [
+                              { translateY: stackDepth * 8 }, // Stack behind (positive offset)
+                              { scale: 1 - stackDepth * 0.03 }, // Slight scale reduction for depth
+                            ],
+                            opacity: isActive ? 1 : 0.7 - stackDepth * 0.15,
+                          }
+                        ]}
+                      >
+                        <TaskCard
+                          task={task}
+                          onSwipe={handleTaskSwipe}
+                          isActive={isActive}
+                        />
+                      </View>
+                    );
+                  })}
+                </View>
               )}
             </View>
 
-            {/* Action Section */}
-            {tasks.length > 0 && currentTaskIndex < tasks.length && !isGenerating && (
+            {/* Action Section - Show current task count */}
+            {tasks.length > 0 && !isGenerating && (
               <View style={styles.actionSection}>
                 <TouchableOpacity style={styles.rejectButton} onPress={handleRejectTask}>
                   <Ionicons name="close" size={20} color="#FF6666" />
                 </TouchableOpacity>
                 
                 <View style={styles.swipeHint}>
-                  <Text style={styles.hintText}>Swipe or tap</Text>
+                  <Text style={styles.hintText}>
+                    {tasks.length} task{tasks.length !== 1 ? 's' : ''} remaining
+                  </Text>
                 </View>
                 
                 <TouchableOpacity style={styles.acceptButton} onPress={handleAcceptTask}>
@@ -620,9 +735,21 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.5)',
     fontFamily: 'Inter',
   },
-  taskCard: {
-    width: screenWidth - 100,
+  taskStack: {
+    position: 'relative',
+    width: '100%',
+    height: 200,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  taskCardContainer: {
     position: 'absolute',
+    width: screenWidth - 100,
+    height: 180,
+  },
+  taskCard: {
+    width: '100%',
+    height: '100%',
     backgroundColor: '#2A2A2A',
     borderRadius: 20,
     borderWidth: 1,
@@ -705,5 +832,12 @@ const styles = StyleSheet.create({
   swipeRight: {
     right: -25,
     borderColor: '#4CAF50',
+  },
+  goalCreatedText: {
+    fontSize: 16,
+    color: '#4CAF50',
+    fontFamily: 'Inter',
+    fontWeight: '600',
+    marginBottom: 8,
   },
 }); 

@@ -8,6 +8,7 @@
     "scheme": "nudger",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "statusBarBackgroundColor": "#272727",
     "splash": {
       "image": "./assets/images/splash-icon.png",
       "resizeMode": "contain",

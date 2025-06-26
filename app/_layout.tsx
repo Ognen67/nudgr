@@ -69,7 +69,7 @@ export default function RootLayout() {
             <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
             <Stack.Screen name="+not-found" />
           </Stack>
-          <StatusBar style="auto" />
+          <StatusBar style="light" backgroundColor="#272727" />
         </ThemeProvider>
     //   </ClerkLoaded>
     // </ClerkProvider>

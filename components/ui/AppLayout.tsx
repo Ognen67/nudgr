@@ -10,9 +10,11 @@ import {
   Platform,
   StatusBar,
   StyleSheet,
+  Text,
   TextInput,
   TouchableOpacity,
-  View
+  View,
+  Modal
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import KeyboardAvoidingWrapper from './KeyboardAvoidingWrapper';
@@ -312,6 +314,12 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, showChatbox = tr
   const [currentThought, setCurrentThought] = useState('');
   const [currentGoalId, setCurrentGoalId] = useState<string | null>(null);
   const [keptTasks, setKeptTasks] = useState<any[]>([]);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successData, setSuccessData] = useState<{
+    goalTitle: string;
+    taskCount: number;
+    hasNoTasks: boolean;
+  } | null>(null);
   const router = useRouter();
 
   const handleSendMessage = async () => {
@@ -325,35 +333,41 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, showChatbox = tr
   };
 
   const handleTaskDecision = async (taskId: string, keep: boolean, taskData?: any, goalData?: any) => {
-    console.log(`Task ${taskId} ${keep ? 'kept' : 'rejected'} - Demo mode, no database operations`);
+    console.log(`Task ${taskId} ${keep ? 'kept' : 'rejected'} - Task already saved to database`);
     
-    // For demo purposes - just log and continue smoothly
+    // Tasks are already saved to database when goal was created
+    // This is just for tracking user decisions
     if (keep && taskData && goalData) {
-      console.log('Demo: Would create goal:', goalData.title);
-      console.log('Demo: Would save task:', taskData.title);
+      console.log('Task kept for goal:', goalData.title, '- Task:', taskData.title);
+      console.log('Task ID in database:', taskId);
     } else {
-      console.log('Demo: Task skipped');
+      console.log('Task rejected - can be marked as declined in database if needed');
     }
   };
 
   const handleAllTasksProcessed = async (finalKeptTasks: any[], goal?: any) => {
     setKeptTasks(finalKeptTasks);
     
-    // Demo mode - just show completion message without database operations
-    if (finalKeptTasks.length === 0) {
-      Alert.alert(
-        'Demo Complete',
-        'No tasks were selected in this demo.',
-        [{ text: 'OK', style: 'cancel' }]
-      );
-    } else {
-      const goalTitle = goal ? goal.title : 'your goal';
-      Alert.alert(
-        'Demo Complete! 🎯',
-        `You selected ${finalKeptTasks.length} tasks for "${goalTitle}". In the real app, these would be saved to your goals!`,
-        [{ text: 'Awesome!', style: 'default' }]
-      );
-    }
+    // Prepare success modal data
+    const goalTitle = goal ? goal.title : 'your goal';
+    setSuccessData({
+      goalTitle,
+      taskCount: finalKeptTasks.length,
+      hasNoTasks: finalKeptTasks.length === 0
+    });
+    
+    setShowSuccessModal(true);
+  };
+
+  const handleGoToReflect = () => {
+    setShowSuccessModal(false);
+    setShowTaskPreview(false);
+    router.push('/(tabs)/goals');
+  };
+
+  const handleCloseSuccess = () => {
+    setShowSuccessModal(false);
+    setShowTaskPreview(false);
   };
 
   return (
@@ -361,8 +375,8 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, showChatbox = tr
       <SafeAreaView style={styles.container}>
         <StatusBar
           barStyle="light-content"
-          backgroundColor="transparent"
-          translucent={true}
+          backgroundColor="#272727"
+          translucent={false}
           animated={true}
         />
 
@@ -393,6 +407,67 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, showChatbox = tr
           onAllTasksProcessed={handleAllTasksProcessed}
           thought={currentThought}
         />
+
+        {/* Success Modal */}
+        <Modal visible={showSuccessModal} transparent animationType="fade">
+          <View style={styles.successModalContainer}>
+            <BlurView intensity={80} tint="dark" style={styles.successModalBlur}>
+              <View style={styles.successModalContent}>
+                <LinearGradient
+                  colors={['rgba(255,107,53,0.15)', '#2A2A2A', '#1E1E1E']}
+                  style={styles.successModalGradient}
+                >
+                  {/* Success Icon */}
+                  <View style={styles.successIconContainer}>
+                    <LinearGradient
+                      colors={['#FF6B35', '#FF8C42']}
+                      style={styles.successIconGradient}
+                    >
+                      <Ionicons name="checkmark" size={32} color="#FFFFFF" />
+                    </LinearGradient>
+                  </View>
+
+                  {/* Success Content */}
+                  <Text style={styles.successTitle}>
+                    {successData?.hasNoTasks ? 'Goal Created! 🎯' : 'Success! 🎯'}
+                  </Text>
+                  
+                  <Text style={styles.successMessage}>
+                    {successData?.hasNoTasks 
+                      ? 'Your goal has been saved to the database. You can review and add tasks later.'
+                      : `Your goal "${successData?.goalTitle}" with ${successData?.taskCount} selected tasks has been saved!`
+                    }
+                  </Text>
+
+                  {/* Action Buttons */}
+                  <View style={styles.successButtonContainer}>
+                    <TouchableOpacity 
+                      style={styles.viewGoalButton}
+                      onPress={handleGoToReflect}
+                      activeOpacity={0.8}
+                    >
+                      <LinearGradient
+                        colors={['#FF6B35', '#FF8C42']}
+                        style={styles.viewGoalButtonGradient}
+                      >
+                        <Ionicons name="eye" size={20} color="#FFFFFF" />
+                        <Text style={styles.viewGoalButtonText}>View in Reflect</Text>
+                      </LinearGradient>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity 
+                      style={styles.continueButton}
+                      onPress={handleCloseSuccess}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={styles.continueButtonText}>Continue</Text>
+                    </TouchableOpacity>
+                  </View>
+                </LinearGradient>
+              </View>
+            </BlurView>
+          </View>
+        </Modal>
       </SafeAreaView>
     </SafeAreaProvider>
   );
@@ -512,5 +587,107 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 6,
     elevation: 4,
+  },
+  successModalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    paddingHorizontal: 20,
+  },
+  successModalBlur: {
+    borderRadius: 28,
+    overflow: 'hidden',
+    width: '100%',
+    maxWidth: 350,
+  },
+  successModalContent: {
+    borderWidth: 2,
+    borderColor: 'rgba(255, 107, 53, 0.4)',
+    borderRadius: 28,
+    overflow: 'hidden',
+    shadowColor: '#FF6B35',
+    shadowOffset: { width: 0, height: 20 },
+    shadowOpacity: 0.3,
+    shadowRadius: 25,
+    elevation: 20,
+  },
+  successModalGradient: {
+    paddingVertical: 32,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+  },
+  successIconContainer: {
+    marginBottom: 24,
+  },
+  successIconGradient: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#FF6B35',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  successTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 12,
+    textAlign: 'center',
+    fontFamily: 'Inter',
+  },
+  successMessage: {
+    fontSize: 16,
+    color: 'rgba(255, 255, 255, 0.85)',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 32,
+    fontFamily: 'Inter',
+  },
+  successButtonContainer: {
+    width: '100%',
+    gap: 12,
+  },
+  viewGoalButton: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#FF6B35',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  viewGoalButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+  },
+  viewGoalButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginLeft: 8,
+    fontFamily: 'Inter',
+  },
+  continueButton: {
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  continueButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: 'rgba(255, 255, 255, 0.8)',
+    textAlign: 'center',
+    fontFamily: 'Inter',
   },
 });

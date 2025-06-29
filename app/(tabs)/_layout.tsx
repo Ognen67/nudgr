@@ -1,15 +1,19 @@
 import { Tabs } from 'expo-router';
-import React, { memo, useRef, useEffect } from 'react';
+import React, { memo, useRef, useEffect, useState } from 'react';
 import { Platform, View, Animated } from 'react-native';
 import { HapticTab } from '@/components/HapticTab';
 import { Ionicons } from '@expo/vector-icons';
 import { GlassTabBar } from '@/components/ui/GlassTabBar';
+import { Lightning, CircleDashed, ChartLineUp, Hourglass, LightbulbIcon, TextboxIcon, TreeStructure, Brain } from 'phosphor-react-native';
+import { usePathname } from 'expo-router';
 
 // Types
 type IoniconsName = keyof typeof Ionicons.glyphMap;
+type PhosphorIconComponent = React.ComponentType<{ size?: number; color?: string; weight?: 'thin' | 'light' | 'regular' | 'bold' | 'fill' | 'duotone' }>;
 
 interface AnimatedTabIconProps {
-  name: IoniconsName;
+  name?: IoniconsName;
+  PhosphorIcon?: PhosphorIconComponent;
   focused: boolean;
   color: string;
 }
@@ -38,7 +42,7 @@ const OPACITY_VALUES = {
 } as const;
 
 // Memoized Animated Tab Icon Component
-const AnimatedTabIcon = memo<AnimatedTabIconProps>(({ name, focused, color }) => {
+const AnimatedTabIcon = memo<AnimatedTabIconProps>(({ name, PhosphorIcon, focused, color }) => {
   const scaleValue = useRef(new Animated.Value(focused ? SCALE_VALUES.focused : SCALE_VALUES.unfocused)).current;
   const opacityValue = useRef(new Animated.Value(focused ? OPACITY_VALUES.focused : OPACITY_VALUES.unfocused)).current;
 
@@ -62,7 +66,15 @@ const AnimatedTabIcon = memo<AnimatedTabIconProps>(({ name, focused, color }) =>
         opacity: opacityValue,
       }}
     >
-      <Ionicons name={name} size={24} color={color} />
+      {PhosphorIcon ? (
+        <PhosphorIcon 
+          size={24} 
+          color={color} 
+          weight={focused ? 'fill' : 'regular'} 
+        />
+      ) : name ? (
+        <Ionicons name={name} size={24} color={color} />
+      ) : null}
     </Animated.View>
   );
 });
@@ -120,6 +132,15 @@ const renderTabBarBackground = () => (
 );
 
 export default function TabLayout() {
+  const pathname = usePathname();
+  const isOnMindMap = pathname === '/ideas-3d';
+
+  // Dynamic tab bar style based on current route
+  const dynamicTabBarStyle = {
+    ...tabBarStyle,
+    display: (isOnMindMap ? 'none' : 'flex') as 'none' | 'flex',
+  };
+
   return (
     <Tabs
       screenOptions={{
@@ -128,17 +149,17 @@ export default function TabLayout() {
         headerShown: false,
         tabBarButton: HapticTab,
         tabBarBackground: renderTabBarBackground,
-        tabBarStyle,
+        tabBarStyle: dynamicTabBarStyle,
         tabBarLabelStyle,
         tabBarItemStyle,
       }}>
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Home',
+          title: 'input',
           tabBarIcon: ({ color, focused }) => (
             <AnimatedTabIcon 
-              name={focused ? 'home' : 'home-outline'} 
+              PhosphorIcon={TextboxIcon}
               focused={focused} 
               color={color} 
             />
@@ -148,10 +169,10 @@ export default function TabLayout() {
       <Tabs.Screen
         name="goals"
         options={{
-          title: 'Goals',
+          title: 'reflect',
           tabBarIcon: ({ color, focused }) => (
             <AnimatedTabIcon 
-              name={focused ? 'rocket' : 'rocket-outline'} 
+              PhosphorIcon={LightbulbIcon}
               focused={focused} 
               color={color} 
             />
@@ -161,10 +182,23 @@ export default function TabLayout() {
       <Tabs.Screen
         name="ai-assistant"
         options={{
-          title: 'AI Coach',
+          title: 'timeline',
           tabBarIcon: ({ color, focused }) => (
             <AnimatedTabIcon 
-              name={focused ? 'sparkles' : 'sparkles-outline'} 
+              PhosphorIcon={Hourglass}
+              focused={focused} 
+              color={color} 
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="ideas-3d"
+        options={{
+          title: 'mind map',
+          tabBarIcon: ({ color, focused }) => (
+            <AnimatedTabIcon 
+              PhosphorIcon={Brain}
               focused={focused} 
               color={color} 
             />

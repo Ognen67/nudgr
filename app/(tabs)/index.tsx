@@ -17,6 +17,7 @@ import { GlassCard } from '@/components/ui/GlassCard';
 import { AppLayout } from '@/components/ui/AppLayout';
 import { useRouter } from 'expo-router';
 import { useFonts } from 'expo-font';
+import * as Haptics from 'expo-haptics';
 
 const { width, height } = Dimensions.get('window');
 
@@ -30,10 +31,12 @@ export default function Dashboard() {
   if (!fontsLoaded) return null;
 
   const handleAICoachPress = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push('/(tabs)/ai-assistant');
   };
 
   const handleProfilePress = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push('/profile');
   };
 

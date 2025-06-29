@@ -13,6 +13,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { GlassCard } from './ui/GlassCard';
 import LiveActivity from '@/src/modules/LiveActivity';
+import * as Haptics from 'expo-haptics';
 
 export default function LiveActivityDemo() {
   const [isSupported, setIsSupported] = useState(false);
@@ -39,6 +40,8 @@ export default function LiveActivityDemo() {
   };
 
   const startActivity = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    
     if (!title.trim()) {
       Alert.alert('Error', 'Please enter a title for the activity');
       return;
@@ -48,6 +51,7 @@ export default function LiveActivityDemo() {
     try {
       const result = await LiveActivity.startLiveActivity(title, progress);
       setIsActive(true);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       Alert.alert('Success', result.message);
     } catch (error: any) {
       Alert.alert('Error', error.message || 'Failed to start Live Activity');
@@ -57,6 +61,8 @@ export default function LiveActivityDemo() {
   };
 
   const updateActivity = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    
     setLoading(true);
     try {
       const result = await LiveActivity.updateLiveActivity(progress, title);
@@ -69,10 +75,13 @@ export default function LiveActivityDemo() {
   };
 
   const endActivity = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    
     setLoading(true);
     try {
       const result = await LiveActivity.endLiveActivity();
       setIsActive(false);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       Alert.alert('Success', result.message);
     } catch (error: any) {
       Alert.alert('Error', error.message || 'Failed to end Live Activity');
@@ -154,13 +163,19 @@ export default function LiveActivityDemo() {
             <View style={styles.progressControls}>
               <TouchableOpacity
                 style={styles.progressButton}
-                onPress={() => setProgress(Math.max(0, progress - 0.1))}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setProgress(Math.max(0, progress - 0.1));
+                }}
               >
                 <Text style={styles.progressButtonText}>-10%</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.progressButton}
-                onPress={() => setProgress(Math.min(1, progress + 0.1))}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setProgress(Math.min(1, progress + 0.1));
+                }}
               >
                 <Text style={styles.progressButtonText}>+10%</Text>
               </TouchableOpacity>

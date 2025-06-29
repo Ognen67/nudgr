@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Button } from '@/components/ui/Button';
 import { AppLayout } from '@/components/ui/AppLayout';
 import { useRouter } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 
 // Frosted Glass Card Component
 const ProfileCard: React.FC<{
@@ -45,14 +46,17 @@ export default function Profile() {
   const router = useRouter();
 
   const handleEditProfile = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     console.log('Edit profile');
   };
 
   const handleSettings = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     console.log('Settings');
   };
 
   const handleLogout = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     console.log('Logout');
   };
 
@@ -121,7 +125,10 @@ export default function Profile() {
               </View>
             </ProfileCard>
 
-            <ProfileCard onPress={() => console.log('Notifications')}>
+            <ProfileCard onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              console.log('Notifications');
+            }}>
               <View style={styles.settingItem}>
                 <View style={styles.settingIcon}>
                   <Ionicons name="notifications-outline" size={20} color="#FF6B35" />
@@ -131,7 +138,10 @@ export default function Profile() {
               </View>
             </ProfileCard>
 
-            <ProfileCard onPress={() => console.log('Privacy')}>
+            <ProfileCard onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              console.log('Privacy');
+            }}>
               <View style={styles.settingItem}>
                 <View style={styles.settingIcon}>
                   <Ionicons name="shield-outline" size={20} color="#FF6B35" />

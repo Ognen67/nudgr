@@ -9,6 +9,7 @@ import { LogBox } from 'react-native';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { RefreshProvider } from '@/contexts/RefreshContext';
 
 // Ignore specific warnings
 LogBox.ignoreLogs([
@@ -62,15 +63,17 @@ export default function RootLayout() {
   return (
     // <ClerkProvider tokenCache={tokenCache} publishableKey={publishableKey}>
     //   <ClerkLoaded>
-        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-          <Stack screenOptions={{ headerShown: false }}>
-            {/* <Stack.Screen name="(auth)" /> */}
-            <Stack.Screen name="(tabs)" />
-            <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
-            <Stack.Screen name="+not-found" />
-          </Stack>
-          <StatusBar style="light" backgroundColor="#272727" />
-        </ThemeProvider>
+        <RefreshProvider>
+          <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+            <Stack screenOptions={{ headerShown: false }}>
+              {/* <Stack.Screen name="(auth)" /> */}
+              <Stack.Screen name="(tabs)" />
+              <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
+              <Stack.Screen name="+not-found" />
+            </Stack>
+            <StatusBar style="light" backgroundColor="#272727" />
+          </ThemeProvider>
+        </RefreshProvider>
     //   </ClerkLoaded>
     // </ClerkProvider>
   );

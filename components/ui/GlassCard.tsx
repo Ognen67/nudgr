@@ -6,6 +6,7 @@ import {
   ViewStyle,
   Animated,
 } from 'react-native';
+import * as Haptics from 'expo-haptics';
 
 interface GlassCardProps {
   children: React.ReactNode;
@@ -22,6 +23,11 @@ export const GlassCard: React.FC<GlassCardProps> = ({
   const opacityValue = new Animated.Value(1);
 
   const handlePressIn = () => {
+    // Add haptic feedback for better UX
+    if (onPress) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    
     Animated.parallel([
       Animated.spring(scaleValue, {
         toValue: 0.98,

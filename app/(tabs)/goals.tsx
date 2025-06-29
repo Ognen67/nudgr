@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   Alert,
   Animated,
+  Easing,
   ScrollView,
   StyleSheet,
   Text,
@@ -19,6 +20,7 @@ import {
 } from 'react-native';
 import { API } from '@/config/api';
 import { useFocusEffect } from '@react-navigation/native';
+import { useRefresh } from '@/contexts/RefreshContext';
 
 interface Task {
   id: string;
@@ -130,14 +132,23 @@ export default function Goals() {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const progressAnimations = useRef<{[key: string]: Animated.Value}>({}).current;
-
+  const { goalsRefreshTrigger } = useRefresh();
 
   // Load VT323 font for the title
   const [fontsLoaded] = useFonts({
     VT323: require('@/assets/fonts/VT323-Regular.ttf'),
   });
 
-  // Replace the useEffect for fetchGoalsAndTasks with useFocusEffect
+  // Removed auto-refresh when switching to ideas tab - will only refresh after new idea creation
+
+  // Refresh goals when refresh trigger changes (only when new goals are created)
+  useEffect(() => {
+    if (goalsRefreshTrigger > 0) {
+      fetchGoalsAndTasks();
+    }
+  }, [goalsRefreshTrigger]);
+
+  // Initial load when screen first loads or comes into focus
   useFocusEffect(
     React.useCallback(() => {
       fetchGoalsAndTasks();
@@ -261,6 +272,7 @@ export default function Goals() {
   };
 
   const toggleGoal = (goalId: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const newExpandedGoals = new Set(expandedGoals);
     if (newExpandedGoals.has(goalId)) {
       newExpandedGoals.delete(goalId);
@@ -305,14 +317,33 @@ export default function Goals() {
           
           const newCompletedCount = updatedTasks.filter((task: Task) => task.completed).length;
           
-          // Animate progress bar smoothly
+          // Animate progress bar smoothly with wall-crushing effect
           if (progressAnimations[goal.id]) {
             const newProgress = updatedTasks.length > 0 ? (newCompletedCount / updatedTasks.length) * 100 : 0;
-            Animated.timing(progressAnimations[goal.id], {
-              toValue: newProgress,
-              duration: 500,
-              useNativeDriver: false,
-            }).start();
+            
+            if (newCompletedStatus) {
+              // Task completed - trigger wall-crushing effect
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+              
+              // Progress animation with ease-in timing
+              Animated.timing(progressAnimations[goal.id], {
+                toValue: newProgress,
+                duration: 800,
+                easing: Easing.poly(0.4),
+                useNativeDriver: false,
+              }).start();
+            } else {
+              // Task uncompleted - gentle haptic
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              
+              // Smooth progress animation with ease-in
+              Animated.timing(progressAnimations[goal.id], {
+                toValue: newProgress,
+                duration: 300,
+                easing: Easing.out(Easing.ease),
+                useNativeDriver: false,
+              }).start();
+            }
           }
           
           return {
@@ -501,10 +532,12 @@ export default function Goals() {
   };
 
   const handleAICoachPress = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push('/(tabs)/ai-assistant');
   };
 
   const handleProfilePress = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push('/profile');
   };
 
@@ -545,28 +578,18 @@ export default function Goals() {
               <Text style={styles.nudgrTitle}>reflect</Text>
             </View>
 
-            <View style={styles.rightButtonsContainer}>
-              <TouchableOpacity
-                style={styles.refreshButton}
-                onPress={fetchGoalsAndTasks}
-                activeOpacity={0.8}
-              >
-                <View style={styles.refreshButtonContainer}>
-                  <Ionicons name="refresh" size={20} color="#FF6B35" />
-                </View>
-              </TouchableOpacity>
-              
-              <TouchableOpacity
-                style={styles.profileButton}
-                onPress={handleProfilePress}
-                activeOpacity={0.8}
-              >
-                <View style={styles.profileButtonContainer}>
-                  <Ionicons name="person-circle" size={24} color="#FF6B35" />
-                </View>
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity
+              style={styles.profileButton}
+              onPress={handleProfilePress}
+              activeOpacity={0.8}
+            >
+              <View style={styles.profileButtonContainer}>
+                <Ionicons name="person-circle" size={24} color="#FF6B35" />
+              </View>
+            </TouchableOpacity>
           </View>
+
+
 
           {/* Content Area */}
           {loading ? (
@@ -617,8 +640,18 @@ export default function Goals() {
                             </View>
                           </View>
                           
-                          {/* Progress Bar */}
+                          {/* Enhanced Progress Bar with Wall-Crushing Effect */}
                           <View style={styles.progressContainer}>
+                            {/* Wall Texture Background */}
+                            <View style={styles.wallBackground}>
+                              <View style={styles.wallPattern}>
+                                {Array.from({ length: 8 }, (_, i) => (
+                                  <View key={i} style={styles.wallBrick} />
+                                ))}
+                              </View>
+                            </View>
+                            
+                            {/* Progress Bar */}
                             <View style={styles.progressBar}>
                               <Animated.View 
                                 style={[
@@ -633,8 +666,53 @@ export default function Goals() {
                                       : `${getProgressPercentage(goal)}%`
                                   }
                                 ]} 
-                              />
+                              >
+                                {/* Crushing Effect Overlay */}
+                                <LinearGradient
+                                  colors={['#FF6B35', '#FF8A65', '#FFAB91']}
+                                  start={{ x: 0, y: 0 }}
+                                  end={{ x: 1, y: 0 }}
+                                  style={styles.crushingGradient}
+                                />
+                                
+                                {/* Impact Line at the progress edge */}
+                                <View style={styles.impactLine} />
+                                
+                                {/* Debris particles */}
+                                <View style={styles.debrisContainer}>
+                                  <View style={[styles.debris, styles.debris1]} />
+                                  <View style={[styles.debris, styles.debris2]} />
+                                  <View style={[styles.debris, styles.debris3]} />
+                                </View>
+                              </Animated.View>
+                              
+                              {/* Crack lines extending from progress */}
+                              {progressAnimations[goal.id] && (
+                                <Animated.View
+                                  style={[
+                                    styles.crackOverlay,
+                                    {
+                                      opacity: progressAnimations[goal.id].interpolate({
+                                        inputRange: [0, 30, 100],
+                                        outputRange: [0, 0.8, 0.4],
+                                        extrapolate: 'clamp',
+                                      }),
+                                    },
+                                  ]}
+                                >
+                                  <View style={styles.crack1} />
+                                  <View style={styles.crack2} />
+                                  <View style={styles.crack3} />
+                                </Animated.View>
+                              )}
                             </View>
+                            
+                                                                                      {/* Progress Percentage Text */}
+                             <View style={styles.progressTextContainer}>
+                               <Text style={styles.progressText}>
+                                 {Math.round(getProgressPercentage(goal))}% CRUSHED
+                               </Text>
+                             </View>
                           </View>
                         </TouchableOpacity>
 
@@ -736,24 +814,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255, 107, 53, 0.3)',
   },
-  rightButtonsContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  refreshButton: {
-    alignItems: 'center',
-  },
-  refreshButtonContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 107, 53, 0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 107, 53, 0.3)',
-  },
+
   goalContainer: {
     marginBottom: 16,
   },
@@ -834,6 +895,137 @@ const styles = StyleSheet.create({
     height: '100%',
     backgroundColor: '#FF6B35',
     borderRadius: 3,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  
+  // Wall-crushing animation styles
+  wallBackground: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: -1,
+  },
+  wallPattern: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    height: '100%',
+    opacity: 0.3,
+  },
+  wallBrick: {
+    width: '12.5%',
+    height: '100%',
+    borderWidth: 0.5,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: 'rgba(139, 69, 19, 0.2)', // Brown brick color
+  },
+  crushingGradient: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 1,
+  },
+  impactLine: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: 2,
+    backgroundColor: '#FFAB91',
+    shadowColor: '#FF6B35',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 4,
+    zIndex: 2,
+  },
+  debrisContainer: {
+    position: 'absolute',
+    right: -8,
+    top: -4,
+    width: 16,
+    height: 14,
+    zIndex: 3,
+  },
+  debris: {
+    position: 'absolute',
+    width: 2,
+    height: 2,
+    backgroundColor: '#FFAB91',
+    borderRadius: 1,
+  },
+  debris1: {
+    top: 2,
+    right: 0,
+    transform: [{ rotate: '45deg' }],
+  },
+  debris2: {
+    top: 6,
+    right: 4,
+    width: 1.5,
+    height: 1.5,
+    transform: [{ rotate: '15deg' }],
+  },
+  debris3: {
+    top: 1,
+    right: 6,
+    width: 1,
+    height: 1,
+    transform: [{ rotate: '75deg' }],
+  },
+  crackOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 1,
+  },
+  crack1: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    width: 1,
+    height: '50%',
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    transform: [{ rotate: '15deg' }],
+  },
+  crack2: {
+    position: 'absolute',
+    top: '25%',
+    right: 10,
+    width: 0.5,
+    height: '75%',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    transform: [{ rotate: '-10deg' }],
+  },
+  crack3: {
+    position: 'absolute',
+    bottom: 0,
+    right: 5,
+    width: 0.5,
+    height: '40%',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    transform: [{ rotate: '25deg' }],
+  },
+  progressTextContainer: {
+    position: 'absolute',
+    top: -20,
+    right: 0,
+  },
+  progressText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#FF6B35',
+    fontFamily: 'Inter',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   tasksContainer: {
     marginTop: 12,
@@ -865,9 +1057,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 14,
     paddingHorizontal: 16,
-  },
-  checkbox: {
-    marginRight: 12,
   },
   checkboxCompleted: {
     opacity: 0.8,
@@ -1004,4 +1193,8 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter',
     fontStyle: 'italic',
   },
+  checkbox: {
+    marginRight: 12,
+  },
+
 });

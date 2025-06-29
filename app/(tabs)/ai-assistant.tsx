@@ -472,10 +472,12 @@ export default function Timeline() {
   };
 
   const handleAICoachPress = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push('/(tabs)/ai-assistant');
   };
 
   const handleProfilePress = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push('/profile');
   };
 

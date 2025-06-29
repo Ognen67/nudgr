@@ -9,6 +9,7 @@ export const API_BASE_URL = 'https://nudgr-server-production.up.railway.app';
 export const ENDPOINTS = {
   GOALS: `${API_BASE_URL}/api/goals`,
   TASKS: `${API_BASE_URL}/api/tasks`,
+  IDEAS: `${API_BASE_URL}/api/ideas`,
   TRANSFORM_THOUGHT: `${API_BASE_URL}/api/ai/transform-thought-to-goal`,
   TRANSFORM_THOUGHT_STREAMING: `${API_BASE_URL}/api/ai/transform-thought-streaming`,
 };

@@ -8,6 +8,7 @@ import {
   Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 
 interface ButtonProps {
   title: string;
@@ -31,6 +32,10 @@ export const Button: React.FC<ButtonProps> = ({
   const scaleValue = new Animated.Value(1);
 
   const handlePressIn = () => {
+    if (!disabled) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    
     Animated.spring(scaleValue, {
       toValue: 0.95,
       useNativeDriver: true,

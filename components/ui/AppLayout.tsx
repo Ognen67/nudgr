@@ -20,31 +20,42 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import KeyboardAvoidingWrapper from './KeyboardAvoidingWrapper';
 // import { useVoiceRecording } from '@/hooks/useVoiceRecording';
 import { TaskPreviewModal } from '@/components/TaskPreviewModal';
+import * as Haptics from 'expo-haptics';
+import { useRefresh } from '@/contexts/RefreshContext';
+import { TaskPreviewProvider } from '@/contexts/TaskPreviewContext';
+import { registerTaskPreviewTrigger, unregisterTaskPreviewTrigger } from '@/utils/taskPreviewService';
 
 interface AppLayoutProps {
   children: React.ReactNode;
   showChatbox?: boolean;
 }
 
+// Chat mode type
+type ChatMode = 'goal' | 'idea';
+
 // Enhanced Glass Chat Component
 const GlassChat: React.FC<{
   chatMessage: string;
   setChatMessage: (message: string) => void;
   onSendMessage: () => void;
+  onIdeaSubmit: (ideaText: string) => void;
   loading?: boolean;
 }> = ({
   chatMessage,
   setChatMessage,
   onSendMessage,
+  onIdeaSubmit,
   loading = false
 }) => {
     const [isFocused, setIsFocused] = useState(false);
+    const [mode, setMode] = useState<ChatMode>('goal');
     const translateY = useRef(new Animated.Value(0)).current;
     const borderRadius = useRef(new Animated.Value(0)).current;
     const marginHorizontal = useRef(new Animated.Value(0)).current;
     const glowOpacity = useRef(new Animated.Value(0)).current;
     const pulseScale = useRef(new Animated.Value(1)).current;
     const pulseGlow = useRef(new Animated.Value(0)).current;
+    const modeColorAnim = useRef(new Animated.Value(0)).current;
     
     // Voice recording hook - commented out for Expo Go compatibility
     // const {
@@ -125,6 +136,9 @@ const GlassChat: React.FC<{
     };
 
     const handleVoicePress = async () => {
+      // Add haptic feedback
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      
       try {
         if (isRecording) {
           // Stop recording
@@ -145,6 +159,47 @@ const GlassChat: React.FC<{
           [{ text: 'OK' }]
         );
       }
+    };
+
+    const toggleMode = () => {
+      const newMode = mode === 'goal' ? 'idea' : 'goal';
+      setMode(newMode);
+      
+      // Animate color change
+      Animated.timing(modeColorAnim, {
+        toValue: newMode === 'idea' ? 1 : 0,
+        duration: 300,
+        useNativeDriver: false,
+      }).start();
+      
+      // Haptic feedback for mode switch
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    };
+
+    const handleSubmit = () => {
+      if (loading || !chatMessage.trim()) return; // Prevent submission if loading or empty
+      
+      if (mode === 'goal') {
+        onSendMessage();
+      } else {
+        const currentMessage = chatMessage;
+        setChatMessage(''); // Clear input immediately
+        onIdeaSubmit(currentMessage);
+      }
+    };
+
+    const getPlaceholderText = () => {
+      if (isRecording) return "Listening...";
+      return mode === 'goal' 
+        ? "your thoughts go here..."
+        : "capture your ideas...";
+    };
+
+    const getModeColor = () => {
+      return modeColorAnim.interpolate({
+        inputRange: [0, 1],
+        outputRange: ['#FF6B35', '#6B35FF'], // Orange for goals, Purple for ideas
+      });
     };
 
     return (
@@ -227,16 +282,30 @@ const GlassChat: React.FC<{
             <View style={styles.chatOverlay}>
               <View style={styles.chatContent}>
                 <View style={styles.chatInputRow}>
+                  {/* Mode Toggle Button */}
+                  <TouchableOpacity
+                    style={styles.modeToggle}
+                    onPress={toggleMode}
+                    activeOpacity={0.7}
+                  >
+                    <Animated.View style={[styles.modeToggleInner, { backgroundColor: getModeColor() }]}>
+                      <Text style={styles.modeToggleText}>
+                        {mode === 'goal' ? 'G' : 'I'}
+                      </Text>
+                    </Animated.View>
+                  </TouchableOpacity>
+
                   <TextInput
                     style={[
                       styles.chatInput,
                       isFocused && styles.chatInputFocused,
+                      { flex: 1, marginLeft: 8 },
                     ]}
-                    placeholder={isRecording ? "Listening..." : "your thoughts go here..."}
+                    placeholder={getPlaceholderText()}
                     placeholderTextColor={isRecording ? "#FF6B35" : "rgba(255, 255, 255, 0.4)"}
                     value={chatMessage}
                     onChangeText={setChatMessage}
-                    onSubmitEditing={onSendMessage}
+                    onSubmitEditing={handleSubmit}
                     onFocus={handleFocus}
                     onBlur={handleBlur}
                     returnKeyType="send"
@@ -282,7 +351,7 @@ const GlassChat: React.FC<{
                   {chatMessage.trim().length > 0 && (
                     <TouchableOpacity
                       style={[styles.sendButton, loading && styles.sendButtonDisabled]}
-                      onPress={loading ? undefined : onSendMessage}
+                      onPress={loading ? undefined : handleSubmit}
                       activeOpacity={loading ? 1 : 0.7}
                       disabled={loading}
                     >
@@ -320,15 +389,71 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, showChatbox = tr
     taskCount: number;
     hasNoTasks: boolean;
   } | null>(null);
+  const [showIdeaSuccessModal, setShowIdeaSuccessModal] = useState(false);
+  const [ideaSuccessData, setIdeaSuccessData] = useState<{
+    ideaTitle: string;
+    ideaDescription: string;
+  } | null>(null);
   const router = useRouter();
+  const { triggerIdeasRefresh, triggerGoalsRefresh } = useRefresh();
 
   const handleSendMessage = async () => {
     if (chatMessage.trim() && !loading) {
+      // Add haptic feedback
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      
       // Reset goal ID for new thought
       setCurrentGoalId(null);
       setCurrentThought(chatMessage);
       setShowTaskPreview(true);
       setChatMessage('');
+    }
+  };
+
+  const handleIdeaSubmit = async (ideaText: string) => {
+    if (ideaText.trim() && !loading) {
+      // Add haptic feedback
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      
+      try {
+        setLoading(true);
+        
+        // Create the idea via API
+        const response = await fetch(ENDPOINTS.IDEAS, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            title: ideaText.slice(0, 50), // Use first 50 chars as title
+            content: ideaText,
+            description: ideaText.length > 50 ? ideaText.slice(51, 200) : null,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to save idea');
+        }
+
+        const idea = await response.json();
+        console.log('Idea saved:', idea);
+        
+        // Show styled success popup
+        setIdeaSuccessData({
+          ideaTitle: idea.title,
+          ideaDescription: idea.description || idea.content || 'Your idea has been captured!'
+        });
+        setShowIdeaSuccessModal(true);
+        
+        // Trigger ideas refresh in any open Ideas3DMindMap components
+        triggerIdeasRefresh();
+        
+      } catch (error) {
+        console.error('Error saving idea:', error);
+        Alert.alert('Error', 'Failed to save idea. Please try again.');
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
@@ -357,18 +482,56 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, showChatbox = tr
     });
     
     setShowSuccessModal(true);
+    
+    // Trigger goals refresh after successful goal creation
+    if (goal) {
+      triggerGoalsRefresh();
+    }
   };
 
   const handleGoToReflect = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setShowSuccessModal(false);
     setShowTaskPreview(false);
     router.push('/(tabs)/goals');
   };
 
   const handleCloseSuccess = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setShowSuccessModal(false);
     setShowTaskPreview(false);
   };
+
+  const handleCloseIdeaSuccess = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setShowIdeaSuccessModal(false);
+    setIdeaSuccessData(null);
+  };
+
+  const handleViewIdeas = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setShowIdeaSuccessModal(false);
+    setIdeaSuccessData(null);
+    // Navigate to ideas tab
+    router.push('/(tabs)/ideas-3d');
+  };
+
+  const triggerTaskPreview = (thought: string) => {
+    console.log('AppLayout triggerTaskPreview called with thought:', thought);
+    setCurrentThought(thought);
+    setShowTaskPreview(true);
+    console.log('TaskPreviewModal should now be visible');
+  };
+
+  // Register the trigger function globally when component mounts
+  React.useEffect(() => {
+    console.log('AppLayout: Registering task preview trigger');
+    registerTaskPreviewTrigger(triggerTaskPreview);
+    return () => {
+      console.log('AppLayout: Unregistering task preview trigger');
+      unregisterTaskPreviewTrigger();
+    };
+  }, []);
 
   return (
     <SafeAreaProvider>
@@ -381,22 +544,25 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, showChatbox = tr
         />
 
         {/* Main Content */}
-        <View style={styles.content}>
-          {children}
-        </View>
+        <TaskPreviewProvider triggerTaskPreview={triggerTaskPreview}>
+          <View style={styles.content}>
+            {children}
+          </View>
+        </TaskPreviewProvider>
         <KeyboardAvoidingWrapper
           style={styles.keyboardWrapper}
           innerStyle={styles.keyboardInner}
         >
           {/* Glass Chat Component - Only show if showChatbox is true */}
-          {showChatbox && (
-            <GlassChat
-              chatMessage={chatMessage}
-              setChatMessage={setChatMessage}
-              onSendMessage={handleSendMessage}
-              loading={loading}
-            />
-          )}
+                  {showChatbox && (
+          <GlassChat
+            chatMessage={chatMessage}
+            setChatMessage={setChatMessage}
+            onSendMessage={handleSendMessage}
+            onIdeaSubmit={handleIdeaSubmit}
+            loading={loading}
+          />
+        )}
         </KeyboardAvoidingWrapper>
         
         {/* Task Preview Modal */}
@@ -468,6 +634,64 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, showChatbox = tr
             </BlurView>
           </View>
         </Modal>
+
+        {/* Idea Success Modal */}
+        <Modal visible={showIdeaSuccessModal} transparent animationType="fade">
+          <View style={styles.successModalContainer}>
+            <BlurView intensity={80} tint="dark" style={styles.successModalBlur}>
+              <View style={styles.successModalContent}>
+                <LinearGradient
+                  colors={['rgba(255,107,53,0.15)', '#2A2A2A', '#1E1E1E']}
+                  style={styles.successModalGradient}
+                >
+                  {/* Success Icon */}
+                  <View style={styles.successIconContainer}>
+                    <LinearGradient
+                      colors={['#FF6B35', '#FF8C42']}
+                      style={styles.successIconGradient}
+                    >
+                      <Ionicons name="bulb" size={32} color="#FFFFFF" />
+                    </LinearGradient>
+                  </View>
+
+                  {/* Success Content */}
+                  <Text style={styles.successTitle}>
+                    Idea Created! 💡
+                  </Text>
+                  
+                  <Text style={styles.successMessage}>
+                    Your idea "{ideaSuccessData?.ideaTitle}" has been successfully added to your collection!
+                  </Text>
+
+                  {/* Action Buttons */}
+                  <View style={styles.successButtonContainer}>
+                    <TouchableOpacity 
+                      style={styles.viewGoalButton}
+                      onPress={handleViewIdeas}
+                      activeOpacity={0.8}
+                    >
+                      <LinearGradient
+                        colors={['#FF6B35', '#FF8C42']}
+                        style={styles.viewGoalButtonGradient}
+                      >
+                        <Ionicons name="bulb-outline" size={20} color="#FFFFFF" />
+                        <Text style={styles.viewGoalButtonText}>Explore Ideas</Text>
+                      </LinearGradient>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity 
+                      style={styles.continueButton}
+                      onPress={handleCloseIdeaSuccess}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={styles.continueButtonText}>Continue</Text>
+                    </TouchableOpacity>
+                  </View>
+                </LinearGradient>
+              </View>
+            </BlurView>
+          </View>
+        </Modal>
       </SafeAreaView>
     </SafeAreaProvider>
   );
@@ -524,7 +748,31 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     backgroundColor: 'transparent',
-
+  },
+  modeToggle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modeToggleInner: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  modeToggleText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    fontFamily: 'Inter',
   },
   chatInput: {
     flex: 1,

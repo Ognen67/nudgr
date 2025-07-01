@@ -1,13 +1,13 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { WebView } from 'react-native-webview';
-import { StyleSheet, View, Dimensions, Modal, Text, TouchableOpacity } from 'react-native';
-import { BlurView } from 'expo-blur';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
-import { ENDPOINTS } from '@/utils/api';
 import { useRefresh } from '@/contexts/RefreshContext';
+import { ENDPOINTS } from '@/utils/api';
 import { triggerTaskPreview as globalTriggerTaskPreview } from '@/utils/taskPreviewService';
+import { Ionicons } from '@expo/vector-icons';
+import { BlurView } from 'expo-blur';
+import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Dimensions, Modal, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { WebView } from 'react-native-webview';
 
 export interface Idea {
     id: string;
@@ -190,11 +190,25 @@ export const Ideas3DMindMap: React.FC<Ideas3DMindMapProps> = ({
                         margin: 0; 
                         overflow: hidden; 
                         background: radial-gradient(circle, #000000 0%, #0a0a0a 33%, #1a1a1a 66%, #2a2a2a 100%);
+                        /* Prevent text selection and user interaction highlights */
+                        -webkit-user-select: none;
+                        -moz-user-select: none;
+                        -ms-user-select: none;
+                        user-select: none;
+                        -webkit-touch-callout: none;
+                        -webkit-tap-highlight-color: transparent;
                     }
                     canvas { 
                         width: 100vw !important; 
                         height: 100vh !important; 
                         display: block;
+                        /* Prevent canvas selection */
+                        -webkit-user-select: none;
+                        -moz-user-select: none;
+                        -ms-user-select: none;
+                        user-select: none;
+                        -webkit-touch-callout: none;
+                        outline: none;
                     }
                 </style>
                 <script async src="https://unpkg.com/es-module-shims@1.3.6/dist/es-module-shims.js"></script>
@@ -289,6 +303,34 @@ export const Ideas3DMindMap: React.FC<Ideas3DMindMapProps> = ({
                     controls.enableZoom = true;
                     controls.zoomToCursor = true;
                     
+                    // Proper pan limiting with dynamic bounds based on zoom level
+                    controls.addEventListener('change', () => {
+                        // Calculate dynamic pan limit based on camera distance
+                        const cameraDistance = camera.position.distanceTo(controls.target);
+                        
+                        // Dynamic pan limit: closer = more freedom, farther = more restricted
+                        const minDistance = 10;
+                        const maxDistance = 300;
+                        const maxPanLimit = 40;  // Max freedom when zoomed in close
+                        
+                        // When fully zoomed out (within 10 units of max distance), disable panning completely
+                        if (cameraDistance >= maxDistance - 10) {
+                            // Lock to center position - no panning allowed
+                            controls.target.set(0, 0, 0);
+                            return;
+                        }
+                        
+                        // For other zoom levels, use dynamic limiting
+                        // Inverse relationship: farther camera = smaller pan limit
+                        const zoomFactor = (maxDistance - cameraDistance) / (maxDistance - minDistance);
+                        const dynamicPanLimit = maxPanLimit * Math.max(0, Math.min(1, zoomFactor));
+                        
+                        // Clamp the target position to stay within dynamic bounds
+                        controls.target.x = Math.max(-dynamicPanLimit, Math.min(dynamicPanLimit, controls.target.x));
+                        controls.target.y = Math.max(-dynamicPanLimit, Math.min(dynamicPanLimit, controls.target.y));
+                        controls.target.z = Math.max(-dynamicPanLimit, Math.min(dynamicPanLimit, controls.target.z));
+                    });
+                    
                     // Update controls after setup
                     controls.update();
                     
@@ -330,12 +372,6 @@ export const Ideas3DMindMap: React.FC<Ideas3DMindMapProps> = ({
                         maxZ: 25
                     };
                     
-                    // Set reasonable pan limits to restrict movement
-                    const panLimitXY = 60; // Moderate pan area for X and Y
-                    const panLimitZ = 40;   // Limit Z-axis movement as well
-                    controls.minPan = new THREE.Vector3(-panLimitXY, -panLimitXY, -panLimitZ);
-                    controls.maxPan = new THREE.Vector3(panLimitXY, panLimitXY, panLimitZ);
-
                     // Store bubble positions for collision detection
                     const bubblePositions = [];
 
@@ -754,6 +790,11 @@ export const Ideas3DMindMap: React.FC<Ideas3DMindMapProps> = ({
         `;
     };
 
+    // Memoize WebGL content to prevent reloads when other props change
+    const webGLContent = useMemo(() => {
+        return generateWebGLContent(ideas);
+    }, [ideas]);
+
     const showIdeaCreatedPopup = (ideaTitle: string, ideaDescription: string) => {
         setIdeaSuccessData({
             ideaTitle,
@@ -941,7 +982,7 @@ export const Ideas3DMindMap: React.FC<Ideas3DMindMapProps> = ({
         <View style={styles.container}>
             <WebView
                 ref={webViewRef}
-                source={{ html: generateWebGLContent(ideas) }}
+                source={{ html: webGLContent }}
                 style={styles.webview}
                 scrollEnabled={true}
                 bounces={false}
@@ -1014,59 +1055,122 @@ export const Ideas3DMindMap: React.FC<Ideas3DMindMapProps> = ({
                 </View>
             </Modal>
 
-            {/* Floating Idea Popup */}
-            {showIdeaPopup && (
-                <View style={[
-                    styles.floatingPopup, 
-                    {
-                        left: Math.max(20, Math.min(width - 320, (selectedIdeaData?.screenX || 0) - 150)),
-                        top: Math.max(80, Math.min(height - 220, (selectedIdeaData?.screenY || 0) + 50))
-                    }
-                ]}>
-                    <BlurView intensity={80} tint="dark" style={styles.floatingPopupBlur}>
-                        {/* Idea Content */}
-                        <Text style={styles.floatingPopupTitle}>
-                            {selectedIdeaData?.title}
-                        </Text>
-                        
-                        <Text style={styles.floatingPopupDescription}>
-                            {selectedIdeaData?.description}
-                        </Text>
-
-                        {/* Action Buttons */}
-                        <View style={styles.floatingPopupButtonContainer}>
+            {/* Floating Idea Popup with Smart Positioning */}
+            {showIdeaPopup && (() => {
+                const POPUP_WIDTH = 300;
+                const POPUP_HEIGHT = 180; // Approximate height based on content
+                const MENU_HEIGHT = Platform.OS === 'ios' ? 88 : 70; // Platform-specific tab bar height
+                const SAFE_MARGIN = 20;
+                const ORB_OFFSET = 60; // Distance from orb center
+                
+                const orbX = selectedIdeaData?.screenX || 0;
+                const orbY = selectedIdeaData?.screenY || 0;
+                
+                // Calculate available space in each direction
+                const spaceLeft = orbX - SAFE_MARGIN;
+                const spaceRight = width - orbX - SAFE_MARGIN;
+                const spaceTop = orbY - SAFE_MARGIN;
+                const spaceBottom = height - orbY - (isMenuVisible ? MENU_HEIGHT : SAFE_MARGIN);
+                
+                let popupX, popupY;
+                
+                // Horizontal positioning: prefer center, then left, then right
+                if (spaceLeft >= POPUP_WIDTH / 2 && spaceRight >= POPUP_WIDTH / 2) {
+                    // Center the popup horizontally on the orb
+                    popupX = orbX - POPUP_WIDTH / 2;
+                } else if (spaceRight >= POPUP_WIDTH) {
+                    // Position to the right of the orb
+                    popupX = Math.min(orbX, width - POPUP_WIDTH - SAFE_MARGIN);
+                } else {
+                    // Position to the left of the orb
+                    popupX = Math.max(SAFE_MARGIN, orbX - POPUP_WIDTH);
+                }
+                
+                // Vertical positioning: prefer above, then below
+                if (spaceTop >= POPUP_HEIGHT + ORB_OFFSET) {
+                    // Position above the orb
+                    popupY = orbY - POPUP_HEIGHT - ORB_OFFSET;
+                } else if (spaceBottom >= POPUP_HEIGHT + ORB_OFFSET) {
+                    // Position below the orb
+                    popupY = orbY + ORB_OFFSET;
+                } else {
+                    // Fallback: position in the center vertically, avoiding menu
+                    const availableHeight = height - (isMenuVisible ? MENU_HEIGHT : 0) - (SAFE_MARGIN * 2);
+                    popupY = Math.max(
+                        SAFE_MARGIN,
+                        Math.min(
+                            height - POPUP_HEIGHT - (isMenuVisible ? MENU_HEIGHT : SAFE_MARGIN),
+                            (availableHeight - POPUP_HEIGHT) / 2 + SAFE_MARGIN
+                        )
+                    );
+                }
+                
+                // Final boundary checks
+                popupX = Math.max(SAFE_MARGIN, Math.min(popupX, width - POPUP_WIDTH - SAFE_MARGIN));
+                popupY = Math.max(SAFE_MARGIN, Math.min(popupY, height - POPUP_HEIGHT - (isMenuVisible ? MENU_HEIGHT : SAFE_MARGIN)));
+                
+                return (
+                    <View style={[
+                        styles.floatingPopup, 
+                        {
+                            left: popupX,
+                            top: popupY
+                        }
+                    ]}>
+                        <BlurView intensity={20} tint="dark" style={styles.floatingPopupBlur}>
+                            {/* Close Button */}
                             <TouchableOpacity 
-                                style={styles.expandIdeaButtonSmall}
-                                onPress={handleExpandIdea}
-                                activeOpacity={0.8}
+                                style={styles.floatingPopupClose}
+                                onPress={handleCloseIdeaPopup}
+                                activeOpacity={0.7}
                             >
-                                <LinearGradient
-                                    colors={['#FF6B35', '#FF8C42']}
-                                    style={styles.expandIdeaButtonSmallGradient}
-                                >
-                                    <Ionicons name="rocket-outline" size={16} color="#FFFFFF" />
-                                    <Text style={styles.expandIdeaButtonSmallText}>Expand</Text>
-                                </LinearGradient>
+                                <Ionicons name="close" size={16} color="rgba(255, 255, 255, 0.6)" />
                             </TouchableOpacity>
+                            
+                            {/* Idea Content */}
+                            <Text style={styles.floatingPopupTitle}>
+                                {selectedIdeaData?.title}
+                            </Text>
+                            
+                            <Text style={styles.floatingPopupDescription}>
+                                {selectedIdeaData?.description}
+                            </Text>
 
-                            <TouchableOpacity 
-                                style={styles.forgetIdeaButtonSmall}
-                                onPress={handleForgetIdea}
-                                activeOpacity={0.8}
-                            >
-                                <LinearGradient
-                                    colors={['rgba(40, 40, 40, 0.8)', 'rgba(20, 20, 20, 0.4)', 'rgba(0, 0, 0, 0.1)']}
-                                    style={styles.forgetIdeaButtonSmallGradient}
-                                    start={{ x: 0, y: 0 }}
-                                    end={{ x: 1, y: 1 }}
+                            {/* Action Buttons */}
+                            <View style={styles.floatingPopupButtonContainer}>
+                                <TouchableOpacity 
+                                    style={styles.expandIdeaButtonSmall}
+                                    onPress={handleExpandIdea}
+                                    activeOpacity={0.8}
                                 >
-                                    <Text style={styles.forgetIdeaButtonSmallText}>Forget</Text>
-                                </LinearGradient>
-                            </TouchableOpacity>
-                        </View>
-                    </BlurView>
-                </View>
-            )}
+                                    <LinearGradient
+                                        colors={['#FF6B35', '#FF8C42']}
+                                        style={styles.expandIdeaButtonSmallGradient}
+                                    >
+                                        <Ionicons name="rocket-outline" size={16} color="#FFFFFF" />
+                                        <Text style={styles.expandIdeaButtonSmallText}>Expand</Text>
+                                    </LinearGradient>
+                                </TouchableOpacity>
+
+                                <TouchableOpacity 
+                                    style={styles.forgetIdeaButtonSmall}
+                                    onPress={handleForgetIdea}
+                                    activeOpacity={0.8}
+                                >
+                                    <LinearGradient
+                                        colors={['rgba(40, 40, 40, 0.8)', 'rgba(20, 20, 20, 0.4)', 'rgba(0, 0, 0, 0.1)']}
+                                        style={styles.forgetIdeaButtonSmallGradient}
+                                        start={{ x: 0, y: 0 }}
+                                        end={{ x: 1, y: 1 }}
+                                    >
+                                        <Text style={styles.forgetIdeaButtonSmallText}>Forget</Text>
+                                    </LinearGradient>
+                                </TouchableOpacity>
+                            </View>
+                        </BlurView>
+                    </View>
+                );
+            })()}
         </View>
     );
 };
@@ -1198,7 +1302,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.4,
         shadowRadius: 20,
         elevation: 20,
-        zIndex: 1000,
+        zIndex: 1000
     },
     floatingPopupBlur: {
         borderRadius: 20,
@@ -1207,7 +1311,20 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: 'rgba(255, 255, 255, 0.15)',
         padding: 24,
+        paddingTop: 36,
         backdropFilter: 'blur(20px)',
+    },
+    floatingPopupClose: {
+        position: 'absolute',
+        top: 12,
+        right: 12,
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 1001,
     },
     floatingPopupTitle: {
         fontSize: 20,

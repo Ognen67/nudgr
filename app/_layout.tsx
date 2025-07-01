@@ -8,8 +8,8 @@ import { LogBox } from 'react-native';
 // import * as SecureStore from 'expo-secure-store';
 import 'react-native-reanimated';
 
-import { useColorScheme } from '@/hooks/useColorScheme';
 import { RefreshProvider } from '@/contexts/RefreshContext';
+import { useColorScheme } from '@/hooks/useColorScheme';
 
 // Ignore specific warnings
 LogBox.ignoreLogs([

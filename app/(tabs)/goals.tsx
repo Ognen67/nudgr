@@ -1,7 +1,9 @@
 import { AppLayout } from '@/components/ui/AppLayout';
 import { GlassCard } from '@/components/ui/GlassCard';
+import { useRefresh } from '@/contexts/RefreshContext';
 import { ENDPOINTS } from '@/utils/api';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -18,9 +20,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { API } from '@/config/api';
-import { useFocusEffect } from '@react-navigation/native';
-import { useRefresh } from '@/contexts/RefreshContext';
 
 interface Task {
   id: string;

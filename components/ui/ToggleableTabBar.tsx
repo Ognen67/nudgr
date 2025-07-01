@@ -1,7 +1,7 @@
+import { usePathname, useRouter } from 'expo-router';
+import { Brain, Hourglass, LightbulbIcon, TextboxIcon } from 'phosphor-react-native';
 import React, { useRef } from 'react';
-import { StyleSheet, Animated, View, Platform, Text, TouchableOpacity } from 'react-native';
-import { useRouter, usePathname } from 'expo-router';
-import { TextboxIcon, LightbulbIcon, Hourglass, Brain } from 'phosphor-react-native';
+import { Animated, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { GlassTabBar } from './GlassTabBar';
 
 interface ToggleableTabBarProps {
@@ -68,30 +68,12 @@ export const ToggleableTabBar: React.FC<ToggleableTabBarProps> = ({ isVisible, o
   }, [isVisible]);
 
   const navigateToTab = (tabRoute: string) => {
-    // Start smooth transition to normal tab bar position (translateY: 0)
-    Animated.parallel([
-      Animated.timing(menuOpacity, {
-        toValue: 1, // Keep visible during transition
-        duration: 150,
-        useNativeDriver: true,
-      }),
-      Animated.timing(menuTranslateY, {
-        toValue: 0, // Move to normal tab bar position
-        duration: 150,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      // After smooth transition, navigate
-      if (onNavigate) {
-        onNavigate();
-      }
-      
-      if (tabRoute === '') {
-        router.push('/');
-      } else {
-        router.push(`/${tabRoute}` as any);
-      }
-    });
+    // Don't hide menu when navigating - let the user control when to hide it
+    if (tabRoute === '') {
+      router.push('/');
+    } else {
+      router.push(`/${tabRoute}` as any);
+    }
   };
 
   const getCurrentRoute = () => {
@@ -134,14 +116,16 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
+    // Match GlassTabBar height exactly
     height: Platform.OS === 'ios' ? 88 : 70,
-    zIndex: 1000,
+    overflow: 'hidden',
   },
   tabBarContent: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
+    // Match the regular tab bar padding exactly - platform specific
     paddingTop: 12,
     paddingBottom: Platform.OS === 'ios' ? 34 : 16,
   },
@@ -149,6 +133,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     flex: 1,
+    // Match the regular tab bar item padding
+    paddingVertical: 4,
   },
   tabLabel: {
     fontSize: 11,

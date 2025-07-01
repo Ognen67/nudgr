@@ -1,6 +1,6 @@
 import { AppLayout } from '@/components/ui/AppLayout';
 import { GlassCard } from '@/components/ui/GlassCard';
-import { ENDPOINTS } from '@/utils/api';
+import { API } from '@/config/api';
 import { Ionicons } from '@expo/vector-icons';
 import { useFonts } from 'expo-font';
 import * as Haptics from 'expo-haptics';
@@ -11,16 +11,12 @@ import {
   ActivityIndicator,
   Animated,
   Dimensions,
-  PanResponder,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View
 } from 'react-native';
-import { BlurView } from 'expo-blur';
-import { Button, NeonNumber } from '@/components/ui/Button';
-import { API } from '@/config/api';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 const isTablet = screenWidth > 768;

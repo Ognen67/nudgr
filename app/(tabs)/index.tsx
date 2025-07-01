@@ -1,23 +1,19 @@
-import React from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Dimensions,
-  StatusBar,
-  Platform,
-} from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
-import { Ionicons } from '@expo/vector-icons';
-import { Button, NeonNumber } from '@/components/ui/Button';
-import { GlassCard } from '@/components/ui/GlassCard';
 import { AppLayout } from '@/components/ui/AppLayout';
-import { useRouter } from 'expo-router';
+import { GlassCard } from '@/components/ui/GlassCard';
+import { Ionicons } from '@expo/vector-icons';
 import { useFonts } from 'expo-font';
 import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
+import React from 'react';
+import {
+  Dimensions,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
+} from 'react-native';
 
 const { width, height } = Dimensions.get('window');
 

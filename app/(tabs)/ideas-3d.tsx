@@ -1,9 +1,9 @@
-import React, { useState, useRef } from 'react';
-import { StyleSheet, View } from 'react-native';
 import { Ideas3DMindMap } from '@/components/Ideas3DMindMap';
 import { AppLayout } from '@/components/ui/AppLayout';
-import { useFocusEffect } from '@react-navigation/native';
 import { ToggleableTabBar } from '@/components/ui/ToggleableTabBar';
+import { useFocusEffect } from '@react-navigation/native';
+import React, { useState } from 'react';
+import { StyleSheet, View } from 'react-native';
 
 const Ideas3DScreen: React.FC = () => {
   const [isMenuVisible, setIsMenuVisible] = useState(false);
@@ -21,10 +21,7 @@ const Ideas3DScreen: React.FC = () => {
     console.log('Menu toggled:', newVisibility ? 'visible' : 'hidden');
   };
 
-  const hideMenuImmediately = () => {
-    setIsMenuVisible(false);
-    console.log('Menu hidden immediately for navigation');
-  };
+
 
   return (
     <AppLayout showChatbox={false}>
@@ -32,6 +29,7 @@ const Ideas3DScreen: React.FC = () => {
       <View style={styles.mindMapContainer}>
         <Ideas3DMindMap 
           onBackgroundClick={toggleMenu}
+          isMenuVisible={isMenuVisible}
         />
       </View>
       
@@ -39,7 +37,6 @@ const Ideas3DScreen: React.FC = () => {
       <ToggleableTabBar 
         isVisible={isMenuVisible}
         onToggle={toggleMenu}
-        onNavigate={hideMenuImmediately}
       />
     </AppLayout>
   );

@@ -1,11 +1,11 @@
-import React from 'react';
-import {
-  View,
-  StyleSheet,
-  Platform,
-} from 'react-native';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
+import React from 'react';
+import {
+  Platform,
+  StyleSheet,
+  View,
+} from 'react-native';
 
 interface GlassTabBarProps {
   children: React.ReactNode;
@@ -44,7 +44,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: Platform.OS === 'ios' ? 88 : 70,
-    overflow: 'hidden',
   },
   blur: {
     flex: 1,

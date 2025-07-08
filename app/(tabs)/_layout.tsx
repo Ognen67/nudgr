@@ -1,11 +1,10 @@
-import { Tabs } from 'expo-router';
-import React, { memo, useRef, useEffect, useState } from 'react';
-import { Platform, View, Animated } from 'react-native';
 import { HapticTab } from '@/components/HapticTab';
-import { Ionicons } from '@expo/vector-icons';
 import { GlassTabBar } from '@/components/ui/GlassTabBar';
-import { Lightning, CircleDashed, ChartLineUp, Hourglass, LightbulbIcon, TextboxIcon, TreeStructure, Brain } from 'phosphor-react-native';
-import { usePathname } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { Tabs, usePathname } from 'expo-router';
+import { Brain, Hourglass, LightbulbIcon, TextboxIcon } from 'phosphor-react-native';
+import React, { memo, useEffect, useRef } from 'react';
+import { Animated, Platform, View } from 'react-native';
 
 // Types
 type IoniconsName = keyof typeof Ionicons.glyphMap;
@@ -167,6 +166,19 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="ideas-3d"
+        options={{
+          title: 'mind map',
+          tabBarIcon: ({ color, focused }) => (
+            <AnimatedTabIcon 
+              PhosphorIcon={Brain}
+              focused={focused} 
+              color={color} 
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="goals"
         options={{
           title: 'reflect',
@@ -186,19 +198,6 @@ export default function TabLayout() {
           tabBarIcon: ({ color, focused }) => (
             <AnimatedTabIcon 
               PhosphorIcon={Hourglass}
-              focused={focused} 
-              color={color} 
-            />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="ideas-3d"
-        options={{
-          title: 'mind map',
-          tabBarIcon: ({ color, focused }) => (
-            <AnimatedTabIcon 
-              PhosphorIcon={Brain}
               focused={focused} 
               color={color} 
             />

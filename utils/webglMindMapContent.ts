@@ -4,6 +4,7 @@ export interface Idea {
     description: string;
     color: string;
     size: number;
+    recencyFactor?: number; // 0 = most recent, 1 = oldest
 }
 
 interface WebGLConfig {
@@ -232,12 +233,20 @@ export const generateWebGLContent = (ideas: Idea[], config: WebGLConfig): string
                 };
 
                 // Function to generate non-colliding position - more attempts for better spacing
-                const generatePosition = (size, attempts = 100) => { // Increased attempts from 50 to 100
+                const generatePosition = (size, recencyFactor = 0.5, attempts = 100) => { // Increased attempts from 50 to 100
                     for (let i = 0; i < attempts; i++) {
+                        // Z position based on recency: recent ideas (low recencyFactor) get higher Z values (closer to camera)
+                        const zRange = screenBounds.maxZ - screenBounds.minZ;
+                        const zPosition = screenBounds.maxZ - (recencyFactor * zRange);
+                        
+                        // Add some variation to Z position to avoid strict layering
+                        const zVariation = (Math.random() - 0.5) * 8; // ±4 units variation
+                        const finalZ = Math.max(screenBounds.minZ, Math.min(screenBounds.maxZ, zPosition + zVariation));
+                        
                         const position = new THREE.Vector3(
                             Math.random() * (screenBounds.maxX - screenBounds.minX) + screenBounds.minX,
                             Math.random() * (screenBounds.maxY - screenBounds.minY) + screenBounds.minY,
-                            Math.random() * (screenBounds.maxZ - screenBounds.minZ) + screenBounds.minZ
+                            finalZ
                         );
                         
                         if (!checkCollision(position, size, bubblePositions)) {
@@ -247,10 +256,18 @@ export const generateWebGLContent = (ideas: Idea[], config: WebGLConfig): string
                     
                     // If no position found, try with relaxed constraints (still better than original)
                     for (let i = 0; i < 50; i++) {
+                        // Z position based on recency: recent ideas (low recencyFactor) get higher Z values (closer to camera)
+                        const zRange = screenBounds.maxZ - screenBounds.minZ;
+                        const zPosition = screenBounds.maxZ - (recencyFactor * zRange);
+                        
+                        // Add some variation to Z position to avoid strict layering
+                        const zVariation = (Math.random() - 0.5) * 8; // ±4 units variation
+                        const finalZ = Math.max(screenBounds.minZ, Math.min(screenBounds.maxZ, zPosition + zVariation));
+                        
                         const position = new THREE.Vector3(
                             Math.random() * (screenBounds.maxX - screenBounds.minX) + screenBounds.minX,
                             Math.random() * (screenBounds.maxY - screenBounds.minY) + screenBounds.minY,
-                            Math.random() * (screenBounds.maxZ - screenBounds.minZ) + screenBounds.minZ
+                            finalZ
                         );
                         
                         // Relaxed collision check - still 3x spacing minimum
@@ -270,10 +287,18 @@ export const generateWebGLContent = (ideas: Idea[], config: WebGLConfig): string
                     }
                     
                     // Final fallback - random position with maximum spacing attempt
+                    // Z position based on recency: recent ideas (low recencyFactor) get higher Z values (closer to camera)
+                    const zRange = screenBounds.maxZ - screenBounds.minZ;
+                    const zPosition = screenBounds.maxZ - (recencyFactor * zRange);
+                    
+                    // Add some variation to Z position to avoid strict layering
+                    const zVariation = (Math.random() - 0.5) * 8; // ±4 units variation
+                    const finalZ = Math.max(screenBounds.minZ, Math.min(screenBounds.maxZ, zPosition + zVariation));
+                    
                     return new THREE.Vector3(
                         Math.random() * (screenBounds.maxX - screenBounds.minX) + screenBounds.minX,
                         Math.random() * (screenBounds.maxY - screenBounds.minY) + screenBounds.minY,
-                        Math.random() * (screenBounds.maxZ - screenBounds.minZ) + screenBounds.minZ
+                        finalZ
                     );
                 };
 
@@ -301,7 +326,7 @@ export const generateWebGLContent = (ideas: Idea[], config: WebGLConfig): string
                     const bubble = new THREE.Mesh(geometry, material);
 
                     // Generate position with collision avoidance
-                    const position = generatePosition(idea.size * 2);
+                    const position = generatePosition(idea.size * 2, idea.recencyFactor || 0.5);
                     bubble.position.copy(position);
                     
                     // Store position for collision detection with other bubbles

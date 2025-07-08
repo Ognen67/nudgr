@@ -37,13 +37,36 @@ interface SelectedIdeaData {
 
 // Function to transform API response to visualization format
 const transformIdeasForVisualization = (apiIdeas: any[]): Idea[] => {
-    return apiIdeas.map((idea, index) => ({
-        id: idea.id,
-        title: idea.title,
-        description: idea.description || idea.content || '',
-        color: getColorForIndex(index),
-        size: index === 0 ? 3.0 : Math.random() * 1.5 + 1.2 // First idea is largest
-    }));
+    // Sort ideas by creation date (most recent first)
+    const sortedIdeas = [...apiIdeas].sort((a, b) => {
+        const dateA = new Date(a.createdAt || a.created_at || Date.now());
+        const dateB = new Date(b.createdAt || b.created_at || Date.now());
+        return dateB.getTime() - dateA.getTime();
+    });
+
+    return sortedIdeas.map((idea, index) => {
+        // Calculate recency factor (0 = most recent, 1 = oldest)
+        const recencyFactor = index / Math.max(1, sortedIdeas.length - 1);
+        
+        // Size calculation: Recent ideas are bigger (2.5-4.0), older ideas are smaller (1.0-2.5)
+        const maxSize = 4.0;
+        const minSize = 1.0;
+        const size = maxSize - (recencyFactor * (maxSize - minSize));
+        
+        // Add some variation to avoid too uniform appearance
+        const sizeVariation = (Math.random() - 0.5) * 0.3;
+        const finalSize = Math.max(minSize, Math.min(maxSize, size + sizeVariation));
+
+        return {
+            id: idea.id,
+            title: idea.title,
+            description: idea.description || idea.content || '',
+            color: getColorForIndex(index),
+            size: finalSize,
+            // Store recency factor for position calculation in WebGL
+            recencyFactor: recencyFactor
+        };
+    });
 };
 
 export const Ideas3DMindMap: React.FC<Ideas3DMindMapProps> = ({ 

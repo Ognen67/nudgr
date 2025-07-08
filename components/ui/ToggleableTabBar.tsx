@@ -1,7 +1,9 @@
+import * as Haptics from 'expo-haptics';
 import { usePathname, useRouter } from 'expo-router';
 import { Brain, Hourglass, LightbulbIcon, TextboxIcon } from 'phosphor-react-native';
 import React, { useRef } from 'react';
 import { Animated, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { AnimatedTabIcon } from './AnimatedTabIcon';
 import { GlassTabBar } from './GlassTabBar';
 
 interface ToggleableTabBarProps {
@@ -26,25 +28,42 @@ const TAB_CONFIG = [
   { icon: Brain, label: 'mind map', route: 'ideas-3d' },
 ];
 
-const TabButton: React.FC<TabButtonProps> = ({ icon: Icon, label, route, isActive, onPress }) => (
-  <TouchableOpacity
-    style={styles.tabButton}
-    onPress={() => onPress(route)}
-    activeOpacity={0.7}
-  >
-    <Icon 
-      size={24} 
-      color={isActive ? '#FF6B35' : 'rgba(255, 255, 255, 0.6)'} 
-      weight={isActive ? 'fill' : 'regular'} 
-    />
-    <Text style={[
-      styles.tabLabel, 
-      { color: isActive ? '#FF6B35' : 'rgba(255, 255, 255, 0.6)' }
-    ]}>
-      {label}
-    </Text>
-  </TouchableOpacity>
-);
+// Tab bar configuration - matching main layout
+const TAB_BAR_CONFIG = {
+  activeTintColor: '#FF6B35',
+  inactiveTintColor: 'rgba(255, 255, 255, 0.6)',
+} as const;
+
+// Enhanced Tab Button with AnimatedTabIcon
+const TabButton: React.FC<TabButtonProps> = ({ icon: Icon, label, route, isActive, onPress }) => {
+  const handlePress = () => {
+    // Add haptic feedback
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onPress(route);
+  };
+
+  const color = isActive ? TAB_BAR_CONFIG.activeTintColor : TAB_BAR_CONFIG.inactiveTintColor;
+
+  return (
+    <TouchableOpacity
+      style={styles.tabButton}
+      onPress={handlePress}
+      activeOpacity={0.7}
+    >
+      <AnimatedTabIcon 
+        PhosphorIcon={Icon}
+        focused={isActive || false}
+        color={color}
+      />
+      <Text style={[
+        styles.tabLabel, 
+        { color }
+      ]}>
+        {label}
+      </Text>
+    </TouchableOpacity>
+  );
+};
 
 export const ToggleableTabBar: React.FC<ToggleableTabBarProps> = ({ isVisible, onToggle, onNavigate }) => {
   const menuOpacity = useRef(new Animated.Value(0)).current;

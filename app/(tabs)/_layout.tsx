@@ -131,13 +131,8 @@ const renderTabBarBackground = () => (
 );
 
 export default function TabLayout() {
-  const { isSignedIn } = useAuth();
   const pathname = usePathname();
   const isOnMindMap = pathname === '/ideas-3d';
-
-  if (!isSignedIn) {
-    return <Redirect href="/(auth)/login" />;
-  }
 
   // Dynamic tab bar style based on current route
   const dynamicTabBarStyle = {

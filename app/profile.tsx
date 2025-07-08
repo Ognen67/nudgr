@@ -1,49 +1,25 @@
-import React from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Image,
-  Platform,
-} from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
-import { Ionicons } from '@expo/vector-icons';
-import { Button } from '@/components/ui/Button';
 import { AppLayout } from '@/components/ui/AppLayout';
-import { useRouter } from 'expo-router';
+import { GlassCard } from '@/components/ui/GlassCard';
+import { Ionicons } from '@expo/vector-icons';
+import { useFonts } from 'expo-font';
 import * as Haptics from 'expo-haptics';
-
-// Frosted Glass Card Component
-const ProfileCard: React.FC<{
-  children: React.ReactNode;
-  onPress?: () => void;
-}> = ({ children, onPress }) => {
-  const CardWrapper = onPress ? TouchableOpacity : View;
-
-  return (
-    <CardWrapper 
-      style={styles.profileCard}
-      onPress={onPress}
-      activeOpacity={onPress ? 0.8 : 1}
-    >
-      <BlurView 
-        intensity={60} 
-        tint="dark" 
-        style={styles.profileBlur}
-      >
-        <View style={styles.profileOverlay}>
-          {children}
-        </View>
-      </BlurView>
-    </CardWrapper>
-  );
-};
+import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
+import {
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
+} from 'react-native';
 
 export default function Profile() {
   const router = useRouter();
+
+  // Load VT323 font for consistent styling
+  const [fontsLoaded] = useFonts({
+    VT323: require('@/assets/fonts/VT323-Regular.ttf'),
+  });
 
   const handleEditProfile = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -60,10 +36,14 @@ export default function Profile() {
     console.log('Logout');
   };
 
+  if (!fontsLoaded) return null;
+
   return (
     <AppLayout>
       <LinearGradient
-        colors={['#000000', '#1a1a1a', '#2a2a2a']}
+        colors={['rgba(255,107,53,0.08)', '#232323', '#181818']}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
         style={styles.gradient}
       >
         {/* Header */}
@@ -77,7 +57,7 @@ export default function Profile() {
           showsVerticalScrollIndicator={false}
         >
           {/* Profile Info Card */}
-          <ProfileCard>
+          <GlassCard style={styles.profileCard}>
             <View style={styles.profileInfo}>
               <View style={styles.avatarContainer}>
                 <View style={styles.avatar}>
@@ -88,90 +68,77 @@ export default function Profile() {
               <Text style={styles.userEmail}>john.doe@example.com</Text>
               <Text style={styles.userRole}>Productivity Enthusiast</Text>
             </View>
-          </ProfileCard>
+          </GlassCard>
 
           {/* Stats Card */}
-          <View style={styles.section}>
+          <GlassCard style={styles.statsCard}>
             <Text style={styles.sectionTitle}>Your Progress</Text>
-            <ProfileCard>
-              <View style={styles.statsGrid}>
-                <View style={styles.statItem}>
-                  <Text style={styles.statNumber}>47</Text>
-                  <Text style={styles.statLabel}>Tasks Done</Text>
-                </View>
-                <View style={styles.statItem}>
-                  <Text style={styles.statNumber}>12</Text>
-                  <Text style={styles.statLabel}>Goals Set</Text>
-                </View>
-                <View style={styles.statItem}>
-                  <Text style={styles.statNumber}>85%</Text>
-                  <Text style={styles.statLabel}>Success Rate</Text>
-                </View>
+            <View style={styles.statsGrid}>
+              <View style={styles.statItem}>
+                <Text style={styles.statNumber}>47</Text>
+                <Text style={styles.statLabel}>Tasks Done</Text>
               </View>
-            </ProfileCard>
-          </View>
+              <View style={styles.statItem}>
+                <Text style={styles.statNumber}>12</Text>
+                <Text style={styles.statLabel}>Goals Set</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text style={styles.statNumber}>85%</Text>
+                <Text style={styles.statLabel}>Success Rate</Text>
+              </View>
+            </View>
+          </GlassCard>
 
           {/* Settings Section */}
-          <View style={styles.section}>
+          <GlassCard style={styles.settingsCard}>
             <Text style={styles.sectionTitle}>Settings</Text>
             
-            <ProfileCard onPress={handleEditProfile}>
-              <View style={styles.settingItem}>
-                <View style={styles.settingIcon}>
-                  <Ionicons name="person-outline" size={20} color="#FF6B35" />
-                </View>
-                <Text style={styles.settingText}>Edit Profile</Text>
-                <Ionicons name="chevron-forward" size={20} color="rgba(255, 255, 255, 0.5)" />
+            <TouchableOpacity style={styles.settingItem} onPress={handleEditProfile}>
+              <View style={styles.settingIcon}>
+                <Ionicons name="person-outline" size={20} color="#FF6B35" />
               </View>
-            </ProfileCard>
+              <Text style={styles.settingText}>Edit Profile</Text>
+              <Ionicons name="chevron-forward" size={20} color="rgba(255, 255, 255, 0.5)" />
+            </TouchableOpacity>
 
-            <ProfileCard onPress={() => {
+            <TouchableOpacity style={styles.settingItem} onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               console.log('Notifications');
             }}>
-              <View style={styles.settingItem}>
-                <View style={styles.settingIcon}>
-                  <Ionicons name="notifications-outline" size={20} color="#FF6B35" />
-                </View>
-                <Text style={styles.settingText}>Notifications</Text>
-                <Ionicons name="chevron-forward" size={20} color="rgba(255, 255, 255, 0.5)" />
+              <View style={styles.settingIcon}>
+                <Ionicons name="notifications-outline" size={20} color="#FF6B35" />
               </View>
-            </ProfileCard>
+              <Text style={styles.settingText}>Notifications</Text>
+              <Ionicons name="chevron-forward" size={20} color="rgba(255, 255, 255, 0.5)" />
+            </TouchableOpacity>
 
-            <ProfileCard onPress={() => {
+            <TouchableOpacity style={styles.settingItem} onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               console.log('Privacy');
             }}>
-              <View style={styles.settingItem}>
-                <View style={styles.settingIcon}>
-                  <Ionicons name="shield-outline" size={20} color="#FF6B35" />
-                </View>
-                <Text style={styles.settingText}>Privacy & Security</Text>
-                <Ionicons name="chevron-forward" size={20} color="rgba(255, 255, 255, 0.5)" />
+              <View style={styles.settingIcon}>
+                <Ionicons name="shield-outline" size={20} color="#FF6B35" />
               </View>
-            </ProfileCard>
+              <Text style={styles.settingText}>Privacy & Security</Text>
+              <Ionicons name="chevron-forward" size={20} color="rgba(255, 255, 255, 0.5)" />
+            </TouchableOpacity>
 
-            <ProfileCard onPress={handleSettings}>
-              <View style={styles.settingItem}>
-                <View style={styles.settingIcon}>
-                  <Ionicons name="settings-outline" size={20} color="#FF6B35" />
-                </View>
-                <Text style={styles.settingText}>App Settings</Text>
-                <Ionicons name="chevron-forward" size={20} color="rgba(255, 255, 255, 0.5)" />
+            <TouchableOpacity style={styles.settingItem} onPress={handleSettings}>
+              <View style={styles.settingIcon}>
+                <Ionicons name="settings-outline" size={20} color="#FF6B35" />
               </View>
-            </ProfileCard>
-          </View>
+              <Text style={styles.settingText}>App Settings</Text>
+              <Ionicons name="chevron-forward" size={20} color="rgba(255, 255, 255, 0.5)" />
+            </TouchableOpacity>
+          </GlassCard>
 
           {/* Actions */}
-          <View style={styles.section}>
-            <Button
-              title="Sign Out"
-              icon="log-out-outline"
-              onPress={handleLogout}
-              variant="secondary"
-              style={styles.logoutButton}
-            />
-          </View>
+          <GlassCard style={styles.actionsCard}>
+            <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+              <Ionicons name="log-out-outline" size={20} color="#FF4444" />
+              <Text style={styles.logoutText}>Sign Out</Text>
+            </TouchableOpacity>
+          </GlassCard>
         </ScrollView>
       </LinearGradient>
     </AppLayout>
@@ -183,56 +150,42 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    alignItems: 'center',
     paddingHorizontal: 24,
-    paddingTop: Platform.OS === 'ios' ? 70 : 60,
-    paddingBottom: 24,
+    paddingTop: 60,
+    paddingBottom: 20,
   },
   headerTitle: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    fontFamily: 'Inter',
-    textAlign: 'center',
+    fontSize: 32,
+    fontWeight: '400',
+    color: '#fff',
+    fontFamily: 'VT323',
+    letterSpacing: 2,
+    textTransform: 'lowercase',
+    textShadowColor: 'rgba(255, 107, 53, 0.18)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 8,
   },
   scrollView: {
     flex: 1,
-    paddingHorizontal: 24,
   },
   scrollContent: {
-    // paddingBottom: Platform.OS === 'ios' ? 140 : 120, // Space for tab bar + chat
+    paddingHorizontal: 24,
+    paddingBottom: 100,
   },
   profileCard: {
-    borderRadius: 16,
-    marginBottom: 16,
-    overflow: 'hidden',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    elevation: 8,
-    shadowColor: 'rgba(255, 255, 255, 0.3)',
-  },
-  profileBlur: {
-    borderRadius: 16,
-  },
-  profileOverlay: {
-    padding: 24,
-    borderWidth: 1,
-    borderRadius: 16,
-    backgroundColor: 'rgba(0, 0, 0, 0.2)',
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    marginBottom: 20,
   },
   profileInfo: {
     alignItems: 'center',
-    paddingVertical: 16,
+    paddingVertical: 8,
   },
   avatarContainer: {
-    marginBottom: 20,
+    marginBottom: 16,
   },
   avatar: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     backgroundColor: 'rgba(255, 107, 53, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -240,17 +193,17 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 107, 53, 0.3)',
   },
   userName: {
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: '700',
     color: '#FFFFFF',
     fontFamily: 'Inter',
-    marginBottom: 6,
+    marginBottom: 4,
   },
   userEmail: {
     fontSize: 16,
     color: 'rgba(255, 255, 255, 0.7)',
     fontFamily: 'Inter',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   userRole: {
     fontSize: 14,
@@ -258,11 +211,11 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter',
     fontWeight: '500',
   },
-  section: {
-    marginBottom: 28,
+  statsCard: {
+    marginBottom: 20,
   },
   sectionTitle: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '700',
     color: '#FFFFFF',
     fontFamily: 'Inter',
@@ -277,23 +230,27 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   statNumber: {
-    fontSize: 30,
-    fontWeight: '800',
+    fontSize: 28,
+    fontWeight: '700',
     color: '#FF6B35',
     fontFamily: 'Inter',
-    textShadowColor: 'rgba(255, 107, 53, 0.5)',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 10,
+    marginBottom: 4,
   },
   statLabel: {
-    fontSize: 14,
+    fontSize: 12,
     color: 'rgba(255, 255, 255, 0.7)',
     fontFamily: 'Inter',
-    marginTop: 6,
+    textAlign: 'center',
+  },
+  settingsCard: {
+    marginBottom: 20,
   },
   settingItem: {
     flexDirection: 'row',
     alignItems: 'center',
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
   },
   settingIcon: {
     width: 40,
@@ -302,7 +259,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 107, 53, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 20,
+    marginRight: 16,
   },
   settingText: {
     flex: 1,
@@ -311,7 +268,20 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter',
     fontWeight: '500',
   },
+  actionsCard: {
+    marginBottom: 20,
+  },
   logoutButton: {
-    marginTop: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+  },
+  logoutText: {
+    fontSize: 16,
+    color: '#FF4444',
+    fontFamily: 'Inter',
+    fontWeight: '500',
+    marginLeft: 8,
   },
 }); 

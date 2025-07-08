@@ -1,20 +1,18 @@
-import React from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Dimensions,
-  Platform,
-} from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
 import { AppLayout } from '@/components/ui/AppLayout';
 import { GlassCard } from '@/components/ui/GlassCard';
-import LiveActivityDemo from '@/components/LiveActivityDemo';
-import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { useFonts } from 'expo-font';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
+import React from 'react';
+import {
+  Dimensions,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
+} from 'react-native';
 
 const { width } = Dimensions.get('window');
 
@@ -83,14 +81,7 @@ export default function Profile() {
             </View>
           </ProfileCard>
 
-          {/* Live Activity Demo Card */}
-          <View style={styles.demoSection}>
-            <Text style={styles.sectionTitle}>🎯 Live Activity Demo</Text>
-            <Text style={styles.sectionSubtitle}>
-              Test Dynamic Island integration on your iPhone 16 Pro
-            </Text>
-            <LiveActivityDemo />
-          </View>
+
 
           {/* Stats Card */}
           <ProfileCard>
@@ -201,20 +192,11 @@ const styles = StyleSheet.create({
     color: '#FF6B35',
     fontStyle: 'italic',
   },
-  demoSection: {
-    marginBottom: 20,
-  },
   sectionTitle: {
     fontSize: 20,
     fontWeight: '700',
     color: '#FFFFFF',
     marginBottom: 8,
-  },
-  sectionSubtitle: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.6)',
-    marginBottom: 16,
-    fontStyle: 'italic',
   },
   statsContainer: {
     flexDirection: 'row',

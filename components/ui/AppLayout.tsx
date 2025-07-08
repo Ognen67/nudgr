@@ -1,4 +1,4 @@
-import { ENDPOINTS, API_BASE_URL } from '@/utils/api';
+import { ENDPOINTS } from '@/utils/api';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -7,23 +7,23 @@ import React, { useRef, useState } from 'react';
 import {
   Alert,
   Animated,
+  Modal,
   Platform,
   StatusBar,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  View,
-  Modal
+  View
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import KeyboardAvoidingWrapper from './KeyboardAvoidingWrapper';
 // import { useVoiceRecording } from '@/hooks/useVoiceRecording';
 import { TaskPreviewModal } from '@/components/TaskPreviewModal';
-import * as Haptics from 'expo-haptics';
 import { useRefresh } from '@/contexts/RefreshContext';
 import { TaskPreviewProvider } from '@/contexts/TaskPreviewContext';
 import { registerTaskPreviewTrigger, unregisterTaskPreviewTrigger } from '@/utils/taskPreviewService';
+import * as Haptics from 'expo-haptics';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -31,7 +31,7 @@ interface AppLayoutProps {
 }
 
 // Chat mode type
-type ChatMode = 'goal' | 'idea';
+type ChatMode = 'idea'; // Changed from 'goal' | 'idea' to just 'idea'
 
 // Enhanced Glass Chat Component
 const GlassChat: React.FC<{
@@ -48,14 +48,14 @@ const GlassChat: React.FC<{
   loading = false
 }) => {
     const [isFocused, setIsFocused] = useState(false);
-    const [mode, setMode] = useState<ChatMode>('goal');
+    const mode: ChatMode = 'idea'; // Locked to idea mode
     const translateY = useRef(new Animated.Value(0)).current;
     const borderRadius = useRef(new Animated.Value(0)).current;
     const marginHorizontal = useRef(new Animated.Value(0)).current;
     const glowOpacity = useRef(new Animated.Value(0)).current;
     const pulseScale = useRef(new Animated.Value(1)).current;
     const pulseGlow = useRef(new Animated.Value(0)).current;
-    const modeColorAnim = useRef(new Animated.Value(0)).current;
+    // Removed modeColorAnim as it's no longer needed
     
     // Voice recording hook - commented out for Expo Go compatibility
     // const {
@@ -161,46 +161,23 @@ const GlassChat: React.FC<{
       }
     };
 
-    const toggleMode = () => {
-      const newMode = mode === 'goal' ? 'idea' : 'goal';
-      setMode(newMode);
-      
-      // Animate color change
-      Animated.timing(modeColorAnim, {
-        toValue: newMode === 'idea' ? 1 : 0,
-        duration: 300,
-        useNativeDriver: false,
-      }).start();
-      
-      // Haptic feedback for mode switch
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    };
+    // Removed toggleMode function as it's no longer needed
 
     const handleSubmit = () => {
       if (loading || !chatMessage.trim()) return; // Prevent submission if loading or empty
       
-      if (mode === 'goal') {
-        onSendMessage();
-      } else {
-        const currentMessage = chatMessage;
-        setChatMessage(''); // Clear input immediately
-        onIdeaSubmit(currentMessage);
-      }
+      // Always submit as idea since mode is locked to 'idea'
+      const currentMessage = chatMessage;
+      setChatMessage(''); // Clear input immediately
+      onIdeaSubmit(currentMessage);
     };
 
     const getPlaceholderText = () => {
       if (isRecording) return "Listening...";
-      return mode === 'goal' 
-        ? "your thoughts go here..."
-        : "capture your ideas...";
+      return "capture your ideas..."; // Always show idea placeholder
     };
 
-    const getModeColor = () => {
-      return modeColorAnim.interpolate({
-        inputRange: [0, 1],
-        outputRange: ['#FF6B35', '#6B35FF'], // Orange for goals, Purple for ideas
-      });
-    };
+    // Removed getModeColor function as it's no longer needed
 
     return (
       <Animated.View
@@ -282,24 +259,13 @@ const GlassChat: React.FC<{
             <View style={styles.chatOverlay}>
               <View style={styles.chatContent}>
                 <View style={styles.chatInputRow}>
-                  {/* Mode Toggle Button */}
-                  <TouchableOpacity
-                    style={styles.modeToggle}
-                    onPress={toggleMode}
-                    activeOpacity={0.7}
-                  >
-                    <Animated.View style={[styles.modeToggleInner, { backgroundColor: getModeColor() }]}>
-                      <Text style={styles.modeToggleText}>
-                        {mode === 'goal' ? 'G' : 'I'}
-                      </Text>
-                    </Animated.View>
-                  </TouchableOpacity>
+                  {/* Removed Mode Toggle Button */}
 
                   <TextInput
                     style={[
                       styles.chatInput,
                       isFocused && styles.chatInputFocused,
-                      { flex: 1, marginLeft: 8 },
+                      { flex: 1 }, // Removed marginLeft since no toggle button
                     ]}
                     placeholder={getPlaceholderText()}
                     placeholderTextColor={isRecording ? "#FF6B35" : "rgba(255, 255, 255, 0.4)"}
@@ -748,31 +714,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     backgroundColor: 'transparent',
-  },
-  modeToggle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modeToggleInner: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  modeToggleText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    fontFamily: 'Inter',
   },
   chatInput: {
     flex: 1,

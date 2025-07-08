@@ -6,6 +6,12 @@ import { Brain, Hourglass, LightbulbIcon, TextboxIcon } from 'phosphor-react-nat
 import React, { memo, useEffect, useRef } from 'react';
 import { Animated, Platform, View } from 'react-native';
 
+
+import { AnimatedTabIcon } from '@/components/ui/AnimatedTabIcon';
+import { GlassTabBar } from '@/components/ui/GlassTabBar';
+import { Tabs, usePathname } from 'expo-router';
+import { Brain, Hourglass, LightbulbIcon, TextboxIcon } from 'phosphor-react-native';
+import { Platform, View } from 'react-native';
 // Types
 type IoniconsName = keyof typeof Ionicons.glyphMap;
 type PhosphorIconComponent = React.ComponentType<{ size?: number; color?: string; weight?: 'thin' | 'light' | 'regular' | 'bold' | 'fill' | 'duotone' }>;
@@ -77,6 +83,7 @@ const AnimatedTabIcon = memo<AnimatedTabIconProps>(({ name, PhosphorIcon, focuse
     </Animated.View>
   );
 });
+
 
 // Tab bar configuration
 const TAB_BAR_CONFIG = {
@@ -166,6 +173,19 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="ideas-3d"
+        options={{
+          title: 'mind map',
+          tabBarIcon: ({ color, focused }) => (
+            <AnimatedTabIcon 
+              PhosphorIcon={Brain}
+              focused={focused} 
+              color={color} 
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="goals"
         options={{
           title: 'reflect',
@@ -185,19 +205,6 @@ export default function TabLayout() {
           tabBarIcon: ({ color, focused }) => (
             <AnimatedTabIcon 
               PhosphorIcon={Hourglass}
-              focused={focused} 
-              color={color} 
-            />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="ideas-3d"
-        options={{
-          title: 'mind map',
-          tabBarIcon: ({ color, focused }) => (
-            <AnimatedTabIcon 
-              PhosphorIcon={Brain}
               focused={focused} 
               color={color} 
             />

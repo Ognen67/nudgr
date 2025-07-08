@@ -1,11 +1,10 @@
-import { Tabs } from 'expo-router';
-import React, { memo, useRef, useEffect, useState } from 'react';
-import { Platform, View, Animated } from 'react-native';
 import { HapticTab } from '@/components/HapticTab';
-import { Ionicons } from '@expo/vector-icons';
 import { GlassTabBar } from '@/components/ui/GlassTabBar';
-import { Lightning, CircleDashed, ChartLineUp, Hourglass, LightbulbIcon, TextboxIcon, TreeStructure, Brain } from 'phosphor-react-native';
-import { usePathname } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { Tabs, usePathname } from 'expo-router';
+import { Brain, Hourglass, LightbulbIcon, TextboxIcon } from 'phosphor-react-native';
+import React, { memo, useEffect, useRef } from 'react';
+import { Animated, Platform, View } from 'react-native';
 
 // Types
 type IoniconsName = keyof typeof Ionicons.glyphMap;
@@ -132,8 +131,13 @@ const renderTabBarBackground = () => (
 );
 
 export default function TabLayout() {
+  const { isSignedIn } = useAuth();
   const pathname = usePathname();
   const isOnMindMap = pathname === '/ideas-3d';
+
+  if (!isSignedIn) {
+    return <Redirect href="/(auth)/login" />;
+  }
 
   // Dynamic tab bar style based on current route
   const dynamicTabBarStyle = {
